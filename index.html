@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-rm="1">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0e10">
+<meta name="description" content="A lightweight music player for the Bangla, English and Other libraries.">
+<title>Alpha Music</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d0e10'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23d9b36c' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23d9b36c'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Icon sprite: one inline SVG, no icon library -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3c4 0 6 10 10 10h5M3 17h3c1.5 0 2.7-1 3.7-2.3M14.3 9.3C15 8.4 16 7 18 7h3M18 4l3 3-3 3M18 14l3 3-3 3"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M4 11V9a3 3 0 0 1 3-3h13M17 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H4M7 21l-3-3 3-3"/></symbol>
+    <symbol id="i-repeat1" viewBox="0 0 24 24"><path d="M4 11V9a3 3 0 0 1 3-3h13M17 3l3 3-3 3M20 13v2a3 3 0 0 1-3 3H4M7 21l-3-3 3-3M11 10.5l1.5-1v6"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" stroke="none"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" stroke="none"/><path d="M17 9l5 6M22 9l-5 6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.2-4.2"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-nextup" viewBox="0 0 24 24"><path d="M3 6h12M3 12h6M3 18h6"/><path d="M13 12v8l7-4z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M5 12a7 7 0 1 0 2.2-5.1M5 4v4h4"/><text x="12" y="15.5" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">10</text></symbol>
+    <symbol id="i-fwd" viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.2-5.1M19 4v4h-4"/><text x="12" y="15.5" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">10</text></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <h1 class="brand">Alpha Music</h1>
+  <nav class="tools" aria-label="Player tools">
+    <button id="btnSearch" class="pill icon" type="button" aria-label="Search tracks" aria-expanded="false" aria-controls="searchRow"><svg class="i"><use href="#i-search"/></svg></button>
+    <button id="btnViz" class="pill" type="button" aria-pressed="false">Visualizer</button>
+    <button id="btnTools" class="pill" type="button" aria-haspopup="dialog">DJ Tools</button>
+    <button id="btnSettings" class="pill icon" type="button" aria-label="Settings" aria-haspopup="dialog"><svg class="i"><use href="#i-settings"/></svg></button>
+  </nav>
+</header>
+
+<main class="app">
+
+  <!-- LIBRARY -->
+  <section id="library" class="col" aria-label="Library">
+    <h2 class="sr">Library</h2>
+    <div class="cats" role="group" aria-label="Category">
+      <button class="cat" type="button" data-cat="bangla" aria-pressed="false">Bangla<span class="n"></span></button>
+      <button class="cat" type="button" data-cat="english" aria-pressed="false">English<span class="n"></span></button>
+      <button class="cat" type="button" data-cat="other" aria-pressed="false">Other<span class="n"></span></button>
+    </div>
+    <div id="searchRow" class="searchrow" hidden>
+      <input id="searchInput" type="search" placeholder="Search this category" aria-label="Search tracks" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+    </div>
+    <div class="libhead">
+      <span id="libCount" aria-live="polite"></span>
+      <button id="btnRefresh" class="link" type="button">Refresh library</button>
+    </div>
+    <div class="listwrap">
+      <div id="list" class="list" role="list" aria-label="Playlist">
+        <div id="spacer" class="spacer"></div>
+      </div>
+      <div id="libMsg" class="msg" hidden>
+        <p id="libMsgText"></p>
+        <button id="libRetry" class="pill" type="button" hidden>Try again</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAYER -->
+  <section id="player" class="col stage" aria-label="Player">
+    <div class="stage-in">
+      <p class="eyebrow">Currently playing</p>
+
+      <div id="artBox">
+        <svg id="artSvg" class="art" viewBox="0 0 200 200" role="img" aria-label="Generated track artwork">
+          <rect class="bg" width="200" height="200"/>
+          <g class="g">
+            <circle cx="100" cy="100" r="96"/><circle cx="100" cy="100" r="89"/><circle cx="100" cy="100" r="82"/>
+            <circle cx="100" cy="100" r="75"/><circle cx="100" cy="100" r="68"/><circle cx="100" cy="100" r="61"/>
+            <circle cx="100" cy="100" r="54"/><circle cx="100" cy="100" r="47"/>
+          </g>
+          <g id="artSheen" class="sheen"><path d="M100 100L100 4A96 96 0 0 1 168 32Z"/><path d="M100 100L100 196A96 96 0 0 1 32 168Z"/></g>
+          <circle id="artLabel" class="label" cx="100" cy="100" r="31"/>
+          <text id="artLetter" x="100" y="109" text-anchor="middle" font-size="26" font-weight="700"></text>
+        </svg>
+      </div>
+
+      <div id="vizStage" hidden>
+        <canvas id="vizCanvas" role="img" aria-label="Audio visualization"></canvas>
+        <p id="vizNote" class="note" hidden>This audio host does not allow analysis, so the visualizer cannot read the sound.</p>
+        <div id="vizModes" class="seg" role="group" aria-label="Visualizer style">
+          <button type="button" data-mode="spectrum" aria-pressed="false">Spectrum</button>
+          <button type="button" data-mode="bars" aria-pressed="false">Bars</button>
+          <button type="button" data-mode="wave" aria-pressed="false">Waveform</button>
+          <button type="button" data-mode="circle" aria-pressed="false">Circle</button>
+        </div>
+      </div>
+
+      <h2 id="npTitle" class="title">Nothing playing</h2>
+      <p class="meta"><span id="npCat" class="chip" hidden></span><span id="npTrack">Choose a track from the library</span><span id="procChip" class="chip" hidden></span></p>
+      <p id="npStatus" class="status" role="status"></p>
+
+      <div class="seekrow">
+        <input id="seek" class="range" type="range" min="0" max="0" step="1" value="0" aria-label="Seek" disabled>
+        <div class="times"><time id="tCur">0:00</time><time id="tDur">0:00</time></div>
+      </div>
+
+      <div class="ctrl main">
+        <button id="bShuffle" class="cb" type="button" aria-label="Shuffle" aria-pressed="false"><svg class="i"><use href="#i-shuffle"/></svg></button>
+        <button id="bPrev" class="cb" type="button" aria-label="Previous track"><svg class="i"><use href="#i-prev"/></svg></button>
+        <button id="bPlay" class="cb play" type="button" aria-label="Play"><svg class="i"><use href="#i-play"/></svg></button>
+        <button id="bNext" class="cb" type="button" aria-label="Next track"><svg class="i"><use href="#i-next"/></svg></button>
+        <button id="bRepeat" class="cb" type="button" aria-label="Repeat: off"><svg class="i"><use href="#i-repeat"/></svg></button>
+      </div>
+
+      <div class="ctrl sub">
+        <button id="bBack" class="cb sm" type="button" aria-label="Back 10 seconds"><svg class="i"><use href="#i-back"/></svg></button>
+        <button id="bFwd" class="cb sm" type="button" aria-label="Forward 10 seconds"><svg class="i"><use href="#i-fwd"/></svg></button>
+        <div class="volwrap js-volwrap">
+          <button id="bMute" class="cb sm" type="button" aria-label="Mute" aria-pressed="false"><svg class="i"><use href="#i-vol"/></svg></button>
+          <input class="range js-vol" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
+        </div>
+        <label class="speedwrap"><span class="sr">Playback speed</span><select class="js-speed"></select></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUEUE -->
+  <section id="queue" class="col" aria-label="Queue">
+    <div class="qhead">
+      <h2>Queue <span id="queueCount"></span></h2>
+      <button id="bClearQueue" class="link" type="button" hidden>Clear queue</button>
+    </div>
+    <ol id="queueList" class="qlist"></ol>
+    <p id="queueEmpty" class="empty">Nothing queued. Use the add buttons on a track to line it up.</p>
+  </section>
+
+</main>
+
+<!-- Compact player bar, shown on small screens when the main player is scrolled out of view -->
+<div id="mini" class="mini" hidden>
+  <button id="miniTitle" class="t" type="button" aria-label="Go to player">Nothing playing</button>
+  <button id="miniPlay" class="cb sm" type="button" aria-label="Play"><svg class="i"><use href="#i-play"/></svg></button>
+  <button id="miniNext" class="cb sm" type="button" aria-label="Next track"><svg class="i"><use href="#i-next"/></svg></button>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden>
+  <span id="toastText"></span>
+  <button id="toastBtn" class="link" type="button" hidden></button>
+</div>
+
+<!-- DJ TOOLS (dormant until a control is changed) -->
+<dialog id="dlgTools" aria-labelledby="toolsH">
+  <div class="dhead">
+    <h2 id="toolsH">DJ Tools</h2>
+    <button class="x" type="button" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="dbody">
+    <div id="procBox" class="proc" data-on="0">
+      <span class="dot" aria-hidden="true"></span>
+      <strong id="procStatus">Audio Processing OFF</strong>
+      <span id="procNote" class="note">Native browser playback.</span>
+    </div>
+
+    <fieldset>
+      <legend>Equalizer</legend>
+      <label class="ctl"><span>Bass</span><input class="range" type="range" min="-12" max="12" step="1" value="0" data-fx="bass"><output data-out="bass">0 dB</output></label>
+      <label class="ctl"><span>Mid</span><input class="range" type="range" min="-12" max="12" step="1" value="0" data-fx="mid"><output data-out="mid">0 dB</output></label>
+      <label class="ctl"><span>Treble</span><input class="range" type="range" min="-12" max="12" step="1" value="0" data-fx="treble"><output data-out="treble">0 dB</output></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Gain</legend>
+      <label class="ctl"><span>Level</span><input class="range" type="range" min="-12" max="12" step="1" value="0" data-fx="gain"><output data-out="gain">0 dB</output></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Filter</legend>
+      <label class="ctl"><span>High-pass</span><input class="range" type="range" min="0" max="100" step="1" value="0" data-fx="hp"><output data-out="hp">Off</output></label>
+      <label class="ctl"><span>Low-pass</span><input class="range" type="range" min="0" max="100" step="1" value="100" data-fx="lp"><output data-out="lp">Off</output></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Echo</legend>
+      <label class="ctl"><span>Mix</span><input class="range" type="range" min="0" max="100" step="1" value="0" data-fx="echo"><output data-out="echo">Off</output></label>
+      <label class="ctl"><span>Delay</span><input class="range" type="range" min="0.1" max="0.8" step="0.05" value="0.3" data-fx="echoTime"><output data-out="echoTime">0.30 s</output></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Reverb</legend>
+      <label class="ctl"><span>Mix</span><input class="range" type="range" min="0" max="100" step="1" value="0" data-fx="reverb"><output data-out="reverb">Off</output></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Between tracks</legend>
+      <label class="ctl"><span>Fade out/in</span><input class="range" type="range" min="0" max="12" step="1" value="0" data-fx="fade"><output data-out="fade">Off</output></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Speed and pitch</legend>
+      <div class="set"><label for="toolSpeed">Playback speed</label><select id="toolSpeed" class="js-speed"></select></div>
+      <div class="set"><label for="fxKeepPitch">Keep pitch when speed changes</label><input id="fxKeepPitch" class="sw" type="checkbox" checked></div>
+    </fieldset>
+
+    <button id="fxReset" class="pill" type="button">Reset all effects</button>
+  </div>
+</dialog>
+
+<!-- SETTINGS -->
+<dialog id="dlgSettings" aria-labelledby="setH">
+  <div class="dhead">
+    <h2 id="setH">Settings</h2>
+    <button class="x" type="button" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="dbody">
+    <div class="set"><label for="setTheme">Theme</label>
+      <select id="setTheme"><option value="dark">Dark</option><option value="black">Black (saves power on OLED)</option><option value="light">Light</option></select></div>
+    <div class="set"><label for="setRate">Playback speed</label><select id="setRate" class="js-speed"></select></div>
+    <div class="set js-volwrap"><label for="setVol">Volume</label><input id="setVol" class="range js-vol" type="range" min="0" max="100" step="1" value="100"></div>
+    <div class="set"><label for="setRepeat">Repeat</label>
+      <select id="setRepeat"><option value="off">Off</option><option value="all">All tracks</option><option value="one">One track</option></select></div>
+    <div class="set"><label for="setShuffle">Shuffle</label><input id="setShuffle" class="sw" type="checkbox"></div>
+    <div class="set"><label for="setAutoplay">Play next track automatically</label><input id="setAutoplay" class="sw" type="checkbox"></div>
+    <div class="set"><label for="setAutoskip">Skip unavailable tracks automatically</label><input id="setAutoskip" class="sw" type="checkbox"></div>
+    <div class="set"><label for="setViz">Visualizer style</label>
+      <select id="setViz"><option value="spectrum">Spectrum</option><option value="bars">Bars</option><option value="wave">Waveform</option><option value="circle">Circle</option></select></div>
+    <div class="set"><label for="setReduce">Reduce motion</label><input id="setReduce" class="sw" type="checkbox"></div>
+    <div class="set"><label for="setKeys">Keyboard shortcuts</label><input id="setKeys" class="sw" type="checkbox"></div>
+    <div class="set"><span>Audio processing</span><span><strong id="setProc">OFF</strong> <button id="setProcReset" class="link" type="button">Reset effects</button></span></div>
+
+    <details class="keys">
+      <summary>Keyboard shortcuts</summary>
+      <dl>
+        <dt>Space</dt><dd>Play or pause</dd>
+        <dt>Left, Right</dt><dd>Seek 5 seconds</dd>
+        <dt>Up, Down</dt><dd>Volume</dd>
+        <dt>M</dt><dd>Mute</dd>
+        <dt>N, P</dt><dd>Next, previous</dd>
+        <dt>R</dt><dd>Repeat</dd>
+        <dt>S</dt><dd>Shuffle</dd>
+        <dt>V</dt><dd>Visualizer</dd>
+        <dt>D</dt><dd>DJ Tools</dd>
+        <dt>/</dt><dd>Search</dd>
+        <dt>Esc</dt><dd>Close panel</dd>
+      </dl>
+    </details>
+  </div>
+</dialog>
+
+<noscript><p style="padding:16px">Alpha Music needs JavaScript to play audio.</p></noscript>
+<script src="script.js" defer></script>
+</body>
+</html>
