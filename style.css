@@ -1,25 +1,25 @@
 /* Alpha Music — static dark UI. System fonts, no animation loops, no heavy effects. */
 
 :root {
-  --bg: #0d0e10;
-  --surface: #14161a;
-  --raised: #1b1e23;
-  --line: #272b31;
-  --text: #ece9e2;
-  --mute: #8e939b;
-  --accent: #d9b36c;
-  --accent-ink: #17120a;
-  --bad: #e58a7a;
+  --bg: #0a0708;
+  --surface: #140f11;
+  --raised: #1d1517;
+  --line: #2b2023;
+  --text: #f1ebec;
+  --mute: #9a8f92;
+  --accent: #dc2f3c;
+  --accent-ink: #ffffff;
+  --bad: #ff9a8a;
   --row: 56px;
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Bengali", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
   color-scheme: dark;
 }
-html[data-theme="black"] { --bg: #000; --surface: #070708; --raised: #101113; --line: #1e2023; }
-html[data-theme="light"] {
-  --bg: #f2f0eb; --surface: #faf9f6; --raised: #fff; --line: #dcd8cf;
-  --text: #1a1b1d; --mute: #666b73; --accent: #8c5f17; --accent-ink: #fff; --bad: #b3392b;
-  color-scheme: light;
-}
+html[data-theme="purple"] { --bg: #0b0910; --surface: #14111c; --raised: #1c1727; --line: #2b2438; --text: #eeeaf6; --mute: #978fa8; --accent: #a35cf0; --accent-ink: #fff; }
+html[data-theme="black"]  { --bg: #000; --surface: #0a0a0a; --raised: #131313; --line: #232323; --text: #f2f2f2; --mute: #8c8c8c; --accent: #f2f2f2; --accent-ink: #000; }
+html[data-theme="blue"]   { --bg: #070b10; --surface: #0f151d; --raised: #161e29; --line: #222d3b; --text: #e9eff7; --mute: #8a97a8; --accent: #3b8cf0; --accent-ink: #fff; }
+html[data-theme="green"]  { --bg: #070d0a; --surface: #0f1713; --raised: #16211b; --line: #223029; --text: #e9f4ee; --mute: #8a9c91; --accent: #2fbf71; --accent-ink: #04140b; }
+html[data-theme="orange"] { --bg: #0d0905; --surface: #17110b; --raised: #211810; --line: #33271b; --text: #f6eee6; --mute: #a09384; --accent: #f08a24; --accent-ink: #1a0e02; }
+html[data-theme="light"]  { --bg: #f5f1f1; --surface: #ffffff; --raised: #ffffff; --line: #e2d9da; --text: #1b1415; --mute: #6f6467; --accent: #d62839; --accent-ink: #fff; --bad: #b3261e; color-scheme: light; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -75,8 +75,8 @@ h1, h2 { margin: 0; }
 .libhead { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; color: var(--mute); font-size: .9rem; min-height: 44px; }
 .libhead .link { font-size: .9rem; }
 
-.listwrap { position: relative; border-top: 1px solid var(--line); }
-.list { position: relative; overflow-y: auto; overscroll-behavior: contain; height: min(52dvh, 460px); }
+.listwrap { position: relative; border-top: 1px solid var(--line); min-height: 120px; }
+.list { position: relative; overflow-y: auto; overscroll-behavior: contain; max-height: min(52dvh, 460px); }
 .spacer { position: relative; width: 100%; }
 .row {
   position: absolute; left: 0; right: 0; top: 0; height: var(--row);
@@ -87,6 +87,8 @@ h1, h2 { margin: 0; }
 .row.bad .r-title { opacity: .55; text-decoration: line-through; }
 .r-main { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 10px; padding: 0 4px 0 16px; text-align: left; }
 .r-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-cat { display: none; flex: none; color: var(--mute); font-size: .75rem; padding: 1px 8px; border: 1px solid var(--line); border-radius: 10px; }
+.list.all .r-cat { display: inline; }
 .r-dur { flex: none; color: var(--mute); font-size: .85rem; font-variant-numeric: tabular-nums; }
 .row.bad .r-dur { color: var(--bad); }
 .r-act { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; color: var(--mute); }
@@ -100,6 +102,7 @@ h1, h2 { margin: 0; }
 .stage-in { width: 100%; max-width: 420px; margin: 0 auto; }
 .eyebrow { margin: 0 0 14px; color: var(--mute); font-size: .85rem; }
 
+img.art { object-fit: cover; }
 .art { display: block; width: 100%; max-width: 300px; aspect-ratio: 1; margin: 0 auto 20px; border-radius: 14px; border: 1px solid var(--line); }
 .art .bg { fill: var(--surface); }
 .art .g circle { fill: none; stroke: var(--line); stroke-width: 1; }
@@ -127,7 +130,10 @@ h1, h2 { margin: 0; }
 .times { display: flex; justify-content: space-between; color: var(--mute); font-size: .85rem; font-variant-numeric: tabular-nums; }
 
 .ctrl { display: flex; align-items: center; justify-content: center; gap: 10px; }
-.ctrl.main { margin-top: 12px; }
+.ctrl.main { margin-top: 12px; justify-content: space-between; }
+.skipgroup { display: flex; align-items: center; gap: 10px; }
+.cb.skip { width: 56px; height: 56px; }
+.cb.skip .i { width: 26px; height: 26px; }
 .ctrl.sub { margin-top: 12px; flex-wrap: wrap; gap: 8px 12px; }
 .cb { width: 52px; height: 52px; flex: none; display: grid; place-items: center; border-radius: 50%; }
 .cb.sm { width: 46px; height: 46px; color: var(--mute); }
@@ -173,7 +179,7 @@ select {
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom)) 16px; background: var(--raised); border-top: 1px solid var(--line);
 }
 .mini .t { flex: 1; min-width: 0; min-height: 48px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.mini .cb { color: var(--text); }
+.mini .cb { color: var(--text); width: 44px; }
 body.has-mini { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
 
 .toast {
@@ -245,7 +251,7 @@ html[data-rm="1"] *, html[data-rm="1"] *::before, html[data-rm="1"] *::after {
   .col { min-height: 0; overflow: auto; border-top: 1px solid var(--line); }
   #library { overflow: hidden; }
   .listwrap { flex: 1; min-height: 0; }
-  .list { height: 100%; }
+  .list { height: 100%; max-height: none; }
   .stage { display: flex; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
   .stage-in { margin: auto; }
   #queue { padding-bottom: 0; }
@@ -256,7 +262,7 @@ html[data-rm="1"] *, html[data-rm="1"] *::before, html[data-rm="1"] *::after {
 
 /* ---------- short landscape phones ---------- */
 @media (max-height: 520px) and (orientation: landscape) {
-  .list { height: 70dvh; }
+  .list { max-height: 70dvh; }
   .art { max-width: 120px; margin-bottom: 12px; }
   .stage { padding: 14px 18px 18px; }
   #vizCanvas { max-height: 30dvh; }

@@ -61,7 +61,7 @@ const IDS = [
   'libMsg', 'libMsgText', 'libRetry', 'artBox', 'artSvg', 'artSheen', 'artLetter', 'vizStage', 'vizCanvas', 'vizNote', 'vizModes',
   'npTitle', 'npCat', 'npTrack', 'procChip', 'npStatus', 'seek', 'tCur', 'tDur', 'bShuffle', 'bPrev', 'bPlay', 'bNext', 'bRepeat',
   'bBack', 'bFwd', 'bMute', 'queueList', 'queueCount', 'queueEmpty', 'bClearQueue', 'mini', 'miniTitle', 'miniPlay', 'miniNext',
-  'toast', 'toastText', 'toastBtn', 'dlgTools', 'dlgSettings', 'procBox', 'procStatus', 'procNote', 'fxKeepPitch', 'fxReset',
+  'artImg', 'miniPrev', 'toast', 'toastText', 'toastBtn', 'dlgTools', 'dlgSettings', 'procBox', 'procStatus', 'procNote', 'fxKeepPitch', 'fxReset',
   'setTheme', 'setRepeat', 'setShuffle', 'setAutoplay', 'setAutoskip', 'setViz', 'setReduce', 'setKeys', 'setProc', 'setProcReset', 'player'
 ];
 function cacheDom() { for (const id of IDS) E[id] = $(id); }
@@ -70,14 +70,17 @@ function cacheDom() { for (const id of IDS) E[id] = $(id); }
  * 2. SETTINGS (tiny, localStorage)
  * ========================================================================== */
 
+const THEMES = { red: '#0a0708', purple: '#0b0910', black: '#000000', blue: '#070b10', green: '#070d0a', orange: '#0d0905', light: '#f5f1f1' };
 const DEFAULTS = {
-  vol: 1, muted: false, rate: 1, repeat: 'off', shuffle: false, cat: 'bangla', theme: 'dark',
+  v: 2, vol: 1, muted: false, rate: 1, repeat: 'off', shuffle: false, cat: 'all', theme: 'red',
   reduce: true, viz: 'spectrum', autoplay: true, keys: true, autoskip: false, keepPitch: true
 };
-const S = Object.assign({}, DEFAULTS, store.get('am:settings', {}));
-if (!SOURCES[S.cat]) S.cat = DEFAULTS.cat;
+const savedSettings = store.get('am:settings', {});
+const S = Object.assign({}, DEFAULTS, savedSettings);
+if (savedSettings.v !== 2) { S.v = 2; S.cat = 'all'; S.theme = 'red'; }   // one-time move to the new default theme and the All tab
+if (S.cat !== 'all' && !SOURCES[S.cat]) S.cat = DEFAULTS.cat;
 if (!REPEATS.includes(S.repeat)) S.repeat = 'off';
-if (!['dark', 'black', 'light'].includes(S.theme)) S.theme = 'dark';
+if (!THEMES[S.theme]) S.theme = 'red';
 if (!['spectrum', 'bars', 'wave', 'circle'].includes(S.viz)) S.viz = 'spectrum';
 S.vol = clamp(Number(S.vol) || 0, 0, 1);
 S.rate = SPEEDS.includes(Number(S.rate)) ? Number(S.rate) : 1;
@@ -93,7 +96,7 @@ function applyTheme() {
   root.dataset.theme = S.theme;
   root.dataset.rm = S.reduce ? '1' : '0';
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = S.theme === 'light' ? '#f2f0eb' : S.theme === 'black' ? '#000000' : '#0d0e10';
+  if (meta) meta.content = THEMES[S.theme];
 }
 
 /* ============================================================================
@@ -131,68 +134,80 @@ async function fetchLibraryText(cat, force) {
 }
 
 /*
- * Parser. A rule takes one trimmed line and returns { name, url } or null.
- * To support a new text format later, add a rule to RULES. Names and URLs are never rewritten;
- * only trailing/leading separator characters between the two ("Name - https://...") are dropped.
+ * Parser. The text files use "-" lines as separators:
+ *
+ *   -
+ *   https://.../Song Name.mp3            (one link  = audio)
+ *   -
+ *   https://.../Other Song.mp3           (two links = audio, then the cover photo)
+ *   https://.../cover.jpg
+ *   -
+ *
+ * The track name is the audio file's own name taken from its link (decoded, audio extension removed).
+ * Links are never rewritten; only the copy used by the <audio> element has spaces encoded.
  */
-const stripTail = (s) => s.replace(/[\s\-–—:|=,>]+$/, '');
-const stripHead = (s) => s.replace(/^[\s\-–—:|=,<]+/, '');
-const RULES = [
-  // [Name](https://...)
-  (line) => {
-    const m = line.match(/^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)\s*$/i);
-    return m ? { name: m[1], url: m[2] } : null;
-  },
-  // Name <separator> https://...   (URL runs to the end of the line, so spaces inside it survive)
-  (line) => {
-    const i = line.search(/https?:\/\//i);
-    return i > 0 ? { name: stripTail(line.slice(0, i).trim()), url: line.slice(i).trim() } : null;
-  },
-  // https://...  <separator> Name
-  (line) => {
-    if (!/^https?:\/\//i.test(line)) return null;
-    const m = line.match(/^(\S+)\s*(.*)$/);
-    return { name: stripHead(m[2]).trim(), url: m[1] };
-  }
-];
+const isDashLine = (l) => /^[-–—]+$/.test(l);
+const isImageUrl = (u) => /\.(jpe?g|png|webp|gif|avif|bmp|svg)(\?|#|$)/i.test(u);
+const AUDIO_EXT = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac|weba|webm|mp4)$/i;
+
+function linksInLine(line) {         // every http(s) link on a line, in order
+  const pos = [];
+  const re = /https?:\/\//gi;
+  let m;
+  while ((m = re.exec(line))) pos.push(m.index);
+  return pos.map((p, i) => line.slice(p, pos[i + 1]).trim());
+}
 function nameFromUrl(u) {
-  try { return decodeURIComponent(u.split(/[?#]/)[0].split('/').pop()) || u; } catch { return u; }
+  let seg = u.split(/[?#]/)[0].split('/').pop() || u;
+  try { seg = decodeURIComponent(seg); } catch { /* keep as is */ }
+  return seg.replace(AUDIO_EXT, '') || seg;
+}
+function makeTrack(urls, cat) {
+  if (!urls.length) return null;
+  let audioUrl = urls[0], cover = urls[1] || '';
+  if (cover && isImageUrl(audioUrl) && !isImageUrl(cover)) [audioUrl, cover] = [cover, audioUrl];
+  const src = toPlayable(audioUrl);
+  try { new URL(src); } catch { return null; }
+  const name = nameFromUrl(audioUrl);
+  return { n: name, u: audioUrl, s: src, cv: cover ? toPlayable(cover) : '', c: cat, k: name.toLowerCase(), d: 0, bad: false };
 }
 function parseMusicFile(text, cat) {
+  const lines = String(text).replace(/^\uFEFF/, '').split(/\r\n|\r|\n/).map((l) => l.trim());
+  const hasDash = lines.some(isDashLine);          // no "-" lines at all: fall back to blank lines as separators
   const tracks = [];
-  let pending = '';                  // a name-only line waits for the URL on the next line
-  const lines = String(text).replace(/^\uFEFF/, '').split(/\r\n|\r|\n/);
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) continue;
-    let hit = null;
-    for (const rule of RULES) { hit = rule(line); if (hit) break; }
-    if (!hit) { pending = line; continue; }
-    const src = toPlayable(hit.url);
-    try { new URL(src); } catch { pending = ''; continue; }               // not a usable URL: skip the entry
-    const name = hit.name || pending || nameFromUrl(hit.url);
-    pending = '';
-    tracks.push({ n: name, u: hit.url, s: src, c: cat, k: name.toLowerCase(), d: 0, bad: false });
+  let urls = [];
+  const flush = () => { const t = makeTrack(urls, cat); if (t) tracks.push(t); urls = []; };
+  for (const line of lines) {
+    if (isDashLine(line) || (!line && !hasDash)) { flush(); continue; }
+    if (line) urls.push(...linksInLine(line));
   }
+  flush();
   return tracks;
 }
 
+async function ensureCategory(cat, force) {
+  if (!force && lib[cat]) return true;
+  try { lib[cat] = { tracks: parseMusicFile(await fetchLibraryText(cat, force), cat) }; return true; }
+  catch (err) { return false; }
+}
+function buildAll() {                // "All" = every loaded category, in tab order
+  lib.all = { tracks: Object.keys(SOURCES).flatMap((c) => (lib[c] ? lib[c].tracks : [])) };
+}
 async function loadCategory(cat, force = false) {
   curCat = cat; S.cat = cat; saveSettings();
+  E.list.classList.toggle('all', cat === 'all');
   paintCats();
   const token = ++loadToken;
-  if (!force && lib[cat]) { showCategory(); return; }
+  const cats = cat === 'all' ? Object.keys(SOURCES) : [cat];
+  if (!force && cats.every((c) => lib[c])) { buildAll(); showCategory(); return; }
   view = []; renderTrackList(); updateCount();
   showMsg('Loading library…');
-  let text;
-  try { text = await fetchLibraryText(cat, force); }
-  catch (err) {
-    if (token === loadToken) showMsg('Music library unavailable', true);
-    return;
-  }
-  lib[cat] = { tracks: parseMusicFile(text, cat) };
-  paintCats();
-  if (token === loadToken) showCategory();
+  const ok = await Promise.all(cats.map((c) => ensureCategory(c, force)));
+  buildAll(); paintCats();
+  if (token !== loadToken) return;
+  if (!ok.some(Boolean)) { showMsg('Music library unavailable', true); return; }
+  if (!ok.every(Boolean)) toast('Some music lists could not be loaded.');
+  showCategory();
 }
 function showCategory() {
   const tracks = lib[curCat] ? lib[curCat].tracks : [];
@@ -220,7 +235,8 @@ function paintCats() {
   document.querySelectorAll('.cat').forEach((b) => {
     const c = b.dataset.cat;
     b.setAttribute('aria-pressed', String(c === curCat));
-    b.querySelector('.n').textContent = lib[c] ? lib[c].tracks.length : '';
+    const loaded = c === 'all' ? Object.keys(SOURCES).some((k) => lib[k]) : lib[c];
+    b.querySelector('.n').textContent = loaded ? lib[c].tracks.length : '';
   });
 }
 
@@ -237,11 +253,12 @@ function makeRow() {
   const row = document.createElement('div');
   row.className = 'row'; row.setAttribute('role', 'listitem');
   row.innerHTML =
-    '<button class="r-main" type="button"><span class="r-title"></span><span class="r-dur"></span></button>' +
+    '<button class="r-main" type="button"><span class="r-title"></span><span class="r-cat"></span><span class="r-dur"></span></button>' +
     '<button class="r-act" type="button" data-act="next"><svg class="i"><use href="#i-nextup"/></svg></button>' +
     '<button class="r-act" type="button" data-act="add"><svg class="i"><use href="#i-plus"/></svg></button>';
   row._title = row.querySelector('.r-title');
   row._dur = row.querySelector('.r-dur');
+  row._cat = row.querySelector('.r-cat');
   row._main = row.querySelector('.r-main');
   row._next = row.children[1];
   row._add = row.children[2];
@@ -270,6 +287,7 @@ function paintRows(force) {
       row._t = t; row._cur = isCur; row._dur_v = dur;
       row.className = 'row' + (isCur ? ' cur' : '') + (t.bad ? ' bad' : '');
       row._title.textContent = t.n;
+      row._cat.textContent = SOURCES[t.c].label;
       row._dur.textContent = dur;
       row._main.setAttribute('aria-label', (isCur && isPlaying() ? 'Pause ' : 'Play ') + t.n);
       if (isCur) row._main.setAttribute('aria-current', 'true'); else row._main.removeAttribute('aria-current');
@@ -794,6 +812,17 @@ function updateArt() {
   E.artSvg.style.setProperty('--h', String(h % 360));
   E.artSheen.setAttribute('transform', `rotate(${(h >> 3) % 360} 100 100)`);
   E.artLetter.textContent = name ? Array.from(name)[0] : '';
+  showCover(cur && cur.cv ? cur.cv : '');
+}
+/** Cover photo from the text file. Falls back to the generated artwork if there is none or it fails to load. */
+function showCover(url) {
+  const img = E.artImg;
+  img.hidden = true; E.artSvg.hidden = false;
+  img.onload = img.onerror = null;
+  if (!url) { img.removeAttribute('src'); return; }
+  img.onload = () => { img.hidden = false; E.artSvg.hidden = true; };
+  img.onerror = () => { img.hidden = true; E.artSvg.hidden = false; };
+  img.src = url;
 }
 function paintToggles() {
   E.bShuffle.setAttribute('aria-pressed', String(S.shuffle));
@@ -854,7 +883,7 @@ function paintMini() {
  * 9. VISUALIZER (single canvas, rAF only while ON, visible and playing)
  * ========================================================================== */
 
-let raf = 0, lastDraw = 0, buf = null, vctx = null, dpr = 1, accent = '#d9b36c', bands = null, bandVals = null;
+let raf = 0, lastDraw = 0, buf = null, vctx = null, dpr = 1, accent = '#dc2f3c', bands = null, bandVals = null;
 
 function initializeVisualizer() {
   if (vizOn) return;
@@ -996,7 +1025,10 @@ function handleResize() { if (vizOn && raf) prepareCanvas(); }
 function updateMediaSession() {
   if (!('mediaSession' in navigator) || !cur) return;
   try {
-    navigator.mediaSession.metadata = new MediaMetadata({ title: cur.n, artist: SOURCES[cur.c].label, album: APP_NAME });
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: cur.n, artist: SOURCES[cur.c].label, album: APP_NAME,
+      artwork: cur.cv ? [{ src: cur.cv }] : []
+    });
   } catch { /* unsupported metadata: ignore */ }
 }
 function setPlaybackState(s) { try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = s; } catch { /* ignore */ } }
@@ -1118,6 +1150,7 @@ function bindUI() {
   E.miniPlay.addEventListener('click', togglePlay);
   E.bPrev.addEventListener('click', previousTrack);
   E.bNext.addEventListener('click', () => nextTrack(true));
+  E.miniPrev.addEventListener('click', previousTrack);
   E.miniNext.addEventListener('click', () => nextTrack(true));
   E.miniTitle.addEventListener('click', () => E.player.scrollIntoView({ block: 'start' }));
   E.bShuffle.addEventListener('click', toggleShuffle);

@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-rm="1">
+<html lang="en" data-theme="red" data-rm="1">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0d0e10">
+<meta name="theme-color" content="#0a0708">
 <meta name="description" content="A lightweight music player for the Bangla, English and Other libraries.">
 <title>Alpha Music</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d0e10'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23d9b36c' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23d9b36c'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0708'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23dc2f3c' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23dc2f3c'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -49,6 +49,7 @@
   <section id="library" class="col" aria-label="Library">
     <h2 class="sr">Library</h2>
     <div class="cats" role="group" aria-label="Category">
+      <button class="cat" type="button" data-cat="all" aria-pressed="false">All<span class="n"></span></button>
       <button class="cat" type="button" data-cat="bangla" aria-pressed="false">Bangla<span class="n"></span></button>
       <button class="cat" type="button" data-cat="english" aria-pressed="false">English<span class="n"></span></button>
       <button class="cat" type="button" data-cat="other" aria-pressed="false">Other<span class="n"></span></button>
@@ -77,6 +78,7 @@
       <p class="eyebrow">Currently playing</p>
 
       <div id="artBox">
+        <img id="artImg" class="art" alt="Cover photo" hidden decoding="async" referrerpolicy="no-referrer">
         <svg id="artSvg" class="art" viewBox="0 0 200 200" role="img" aria-label="Generated track artwork">
           <rect class="bg" width="200" height="200"/>
           <g class="g">
@@ -112,9 +114,11 @@
 
       <div class="ctrl main">
         <button id="bShuffle" class="cb" type="button" aria-label="Shuffle" aria-pressed="false"><svg class="i"><use href="#i-shuffle"/></svg></button>
-        <button id="bPrev" class="cb" type="button" aria-label="Previous track"><svg class="i"><use href="#i-prev"/></svg></button>
-        <button id="bPlay" class="cb play" type="button" aria-label="Play"><svg class="i"><use href="#i-play"/></svg></button>
-        <button id="bNext" class="cb" type="button" aria-label="Next track"><svg class="i"><use href="#i-next"/></svg></button>
+        <div class="skipgroup">
+          <button id="bPrev" class="cb skip" type="button" aria-label="Previous track"><svg class="i"><use href="#i-prev"/></svg></button>
+          <button id="bPlay" class="cb play" type="button" aria-label="Play"><svg class="i"><use href="#i-play"/></svg></button>
+          <button id="bNext" class="cb skip" type="button" aria-label="Next track"><svg class="i"><use href="#i-next"/></svg></button>
+        </div>
         <button id="bRepeat" class="cb" type="button" aria-label="Repeat: off"><svg class="i"><use href="#i-repeat"/></svg></button>
       </div>
 
@@ -145,6 +149,7 @@
 <!-- Compact player bar, shown on small screens when the main player is scrolled out of view -->
 <div id="mini" class="mini" hidden>
   <button id="miniTitle" class="t" type="button" aria-label="Go to player">Nothing playing</button>
+  <button id="miniPrev" class="cb sm" type="button" aria-label="Previous track"><svg class="i"><use href="#i-prev"/></svg></button>
   <button id="miniPlay" class="cb sm" type="button" aria-label="Play"><svg class="i"><use href="#i-play"/></svg></button>
   <button id="miniNext" class="cb sm" type="button" aria-label="Next track"><svg class="i"><use href="#i-next"/></svg></button>
 </div>
@@ -219,7 +224,7 @@
   </div>
   <div class="dbody">
     <div class="set"><label for="setTheme">Theme</label>
-      <select id="setTheme"><option value="dark">Dark</option><option value="black">Black (saves power on OLED)</option><option value="light">Light</option></select></div>
+      <select id="setTheme"><option value="red">Red</option><option value="purple">Purple</option><option value="black">Black (saves power on OLED)</option><option value="blue">Blue</option><option value="green">Green</option><option value="orange">Orange</option><option value="light">Light</option></select></div>
     <div class="set"><label for="setRate">Playback speed</label><select id="setRate" class="js-speed"></select></div>
     <div class="set js-volwrap"><label for="setVol">Volume</label><input id="setVol" class="range js-vol" type="range" min="0" max="100" step="1" value="100"></div>
     <div class="set"><label for="setRepeat">Repeat</label>
