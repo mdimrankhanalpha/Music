@@ -1,4 +1,4 @@
-/* Alpha Music — static dark UI. System fonts, no animation loops, no heavy effects. */
+/* Alpha Music — immersive music studio. Lightweight effects; responsive on phones and desktop. */
 
 :root {
   --bg: #0a0708;
@@ -267,4 +267,32 @@ html[data-rm="1"] *, html[data-rm="1"] *::before, html[data-rm="1"] *::after {
   .stage { padding: 14px 18px 18px; }
   #vizCanvas { max-height: 30dvh; }
   .cb.play { width: 64px; height: 64px; }
+}
+
+/* Immersive library additions */
+html[data-theme="red"] { --accent: #ff365f; --bg: #08070d; --surface: #12101b; --raised: #1a1726; --line: #30263b; }
+html[data-theme="purple"] { --accent: #bb72ff; }
+html[data-theme="blue"] { --accent: #43d9ff; }
+html[data-theme="green"] { --accent: #56f0b2; }
+html[data-theme="orange"] { --accent: #ffc46b; }
+.cat { transition: border-color .16s ease, background .16s ease, color .16s ease; }
+.cat[aria-pressed="true"] { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent), 0 4px 18px color-mix(in srgb, var(--accent) 12%, transparent); }
+@media (min-width: 980px) {
+  .app { display: grid; grid-template-columns: minmax(280px, 0.92fr) minmax(360px, 1.08fr); grid-template-areas: "library player" "queue player"; align-items: start; gap: 0; max-width: 1500px; margin: 0 auto; padding: 0 20px 28px; }
+  #library { grid-area: library; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: color-mix(in srgb, var(--surface) 45%, transparent); }
+  #player { grid-area: player; border: 1px solid var(--line); border-radius: 22px; margin-left: 18px; min-height: 720px; background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 58%), var(--bg); }
+  #queue { grid-area: queue; margin-top: 16px; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+  .list { max-height: min(52vh, 560px); }
+  .stage { padding: 28px; }
+  .stage-in { max-width: 560px; }
+  .art { max-width: min(100%, 390px); border-radius: 20px; box-shadow: 0 18px 55px #0005; }
+  .top { max-width: 1500px; margin: 0 auto; padding: 18px 20px; }
+}
+@media (max-width: 420px) {
+  .top { padding-left: 10px; padding-right: 10px; }
+  .tools { gap: 5px; }
+  .pill { padding-left: 11px; padding-right: 11px; }
+  .cats { padding-left: 10px; padding-right: 10px; }
+  .cat { padding: 0 12px; }
+  .stage { padding-left: 12px; padding-right: 12px; }
 }

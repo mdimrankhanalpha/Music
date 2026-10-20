@@ -25,7 +25,10 @@
 const SOURCES = {
   bangla:  { label: 'Bangla',  blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/Music%20Bangla.txt' },
   english: { label: 'English', blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/Music%20English.txt' },
-  other:   { label: 'Other',   blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/Music%20Other.txt' }
+  other:   { label: 'Other',   blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/Music%20Other.txt' },
+  dj:      { label: 'DJ',      blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/DJ.txt' },
+  sakrain: { label: 'For Sakrain', blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/For%20Sakrain.txt' },
+  russian: { label: 'Music Russian', blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/Music%20Russian.txt' }
 };
 const CACHE_TTL = 6 * 3600 * 1000;      // re-download the text files at most every 6 hours (or on "Refresh library")
 const ROW_H = 56;                       // keep in sync with --row in style.css
@@ -115,7 +118,11 @@ function toRawUrl(u) {
   return m ? `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}` : u;
 }
 /** URL used by the <audio> element. The original text from the file is kept untouched in track.u */
-function toPlayable(u) { return toRawUrl(u).replace(/ /g, '%20'); }
+function toPlayable(u) {
+  const raw = toRawUrl(String(u || '').trim());
+  try { const parsed = new URL(raw); parsed.pathname = parsed.pathname.split('/').map(part => part).join('/'); return parsed.href; }
+  catch { return raw.replace(/ /g, '%20'); }
+}
 
 async function fetchLibraryText(cat, force) {
   const key = 'am:lib:' + cat;
