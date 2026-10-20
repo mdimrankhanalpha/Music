@@ -378,3 +378,40 @@ html[data-theme="orange"] { --accent: #ffc46b; }
   .title { text-align:center; }
   dialog[open] { width:min(94vw, 560px); max-height:84dvh; }
 }
+
+
+/* ---------- Alpha Music layout refinement ---------- */
+/* Remove the heavy horizontal separators that visually waste space. */
+.listwrap { border-top: 0 !important; }
+.stage { border-top: 0 !important; }
+#queue { border-top: 0 !important; }
+@media (min-width: 1000px) {
+  .col { border-top: 0 !important; }
+  .stage { border-left: 1px solid color-mix(in srgb, var(--line) 45%, transparent) !important;
+           border-right: 1px solid color-mix(in srgb, var(--line) 45%, transparent) !important; }
+  .app { grid-template-columns: minmax(290px, 0.95fr) minmax(440px, 1.55fr) minmax(280px, 0.95fr); }
+  .stage { padding: clamp(12px, 2vh, 24px) clamp(16px, 2vw, 32px); overflow-y: auto; }
+  .stage-in { max-width: 680px; }
+  .art { max-width: min( min(54vh, 440px), 100%); margin-bottom: clamp(10px, 1.8vh, 20px); }
+  .eyebrow { margin-bottom: 8px; }
+  .title { font-size: clamp(1.5rem, 2vw, 2.15rem); }
+  #vizCanvas { aspect-ratio: 16 / 7; height: clamp(220px, 42vh, 430px); max-height: none; }
+  #vizStage { width: 100%; }
+  .seg { margin-bottom: 12px; }
+}
+/* Make visualizer a substantial center-stage view, not a thin strip. */
+#vizStage:not([hidden]) { display: flex; flex-direction: column; gap: 10px; }
+#vizCanvas { min-height: 210px; }
+#vizModes { flex: none; flex-wrap: wrap; }
+#vizModes button { min-width: 90px; }
+/* Settings and DJ tools act like a right-side workspace on desktop. */
+@media (min-width: 1000px) {
+  dialog { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(34vw, 520px); max-width: 520px;
+           height: 100dvh; max-height: 100dvh; border-radius: 0; border-top: 0; border-right: 0; border-bottom: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.12); }
+}
+@media (max-width: 999px) {
+  .stage { border-top: 0; }
+  #vizCanvas { aspect-ratio: 5 / 4; min-height: 220px; }
+  .art { max-width: min(82vw, 360px); }
+}
