@@ -415,3 +415,106 @@ html[data-theme="orange"] { --accent: #ffc46b; }
   #vizCanvas { aspect-ratio: 5 / 4; min-height: 220px; }
   .art { max-width: min(82vw, 360px); }
 }
+
+
+
+/* ALPHA MUSIC — SIGNATURE LUXURY DESKTOP EDITION */
+:root {
+  --bg:#09090d; --surface:#111116; --raised:#191920; --line:#292832;
+  --text:#f7f5fb; --mute:#a4a0b1; --accent:#b78aff; --accent-ink:#10091a;
+  --row:58px;
+}
+html, body { min-height:100%; }
+body {
+  background:
+    radial-gradient(ellipse at 51% -20%, rgba(123,73,181,.19), transparent 44%),
+    radial-gradient(ellipse at 100% 100%, rgba(119,43,75,.08), transparent 35%),
+    var(--bg);
+  letter-spacing:.005em;
+}
+.top {
+  min-height:76px; padding:16px clamp(18px,2.3vw,36px);
+  background:rgba(9,9,13,.82); backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(255,255,255,.055);
+}
+.brand {
+  font-size:clamp(22px,2vw,30px); letter-spacing:-.055em; font-weight:850;
+  background:linear-gradient(105deg,#fff 5%,#d8c5ff 55%,#a879ee 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.tools { gap:9px; }
+.pill {
+  border:1px solid rgba(255,255,255,.085); background:rgba(255,255,255,.045);
+  border-radius:999px; padding:10px 15px; transition:background .18s,border-color .18s,transform .18s;
+}
+.pill:hover { background:rgba(183,138,255,.13); border-color:rgba(183,138,255,.35); transform:translateY(-1px); }
+.pill[aria-pressed="true"], .pill.active { background:#c6a4ff; color:#150d20; border-color:#c6a4ff; }
+.app { gap:16px; padding:16px clamp(12px,1.7vw,26px) 24px; }
+.col, .stage, #queue, .listwrap {
+  border:1px solid rgba(255,255,255,.065); border-radius:18px;
+  background:linear-gradient(155deg,rgba(25,25,33,.94),rgba(14,14,19,.96));
+  box-shadow:0 18px 48px rgba(0,0,0,.18);
+}
+.col { padding:15px; }
+.cats { gap:7px; }
+.cat {
+  border-radius:11px; padding:10px 11px; color:#b7b3c2;
+  transition:background .16s,color .16s;
+}
+.cat:hover { background:rgba(255,255,255,.055); color:#fff; }
+.cat[aria-pressed="true"], .cat.active {
+  background:linear-gradient(105deg,rgba(183,138,255,.22),rgba(183,138,255,.08));
+  color:#e6d5ff; box-shadow:inset 3px 0 #b78aff;
+}
+input, select {
+  border-radius:11px !important; border:1px solid rgba(255,255,255,.09) !important;
+  background:#101016 !important;
+}
+.track, .song, .item, .queue-item {
+  border-radius:12px; transition:background .15s,transform .15s;
+}
+.track:hover, .song:hover, .item:hover, .queue-item:hover { background:rgba(255,255,255,.055); }
+.track[aria-current="true"], .track.active, .queue-item.active {
+  background:linear-gradient(90deg,rgba(183,138,255,.17),rgba(183,138,255,.035));
+}
+.stage { padding:clamp(18px,2.3vw,34px); background:
+  radial-gradient(ellipse at 50% 0%,rgba(137,85,195,.14),transparent 47%),
+  linear-gradient(155deg,#18171f,#101015 70%); }
+.stage-in { max-width:760px; }
+#art, .art, .cover, .album-art {
+  border-radius:16px; box-shadow:0 24px 65px rgba(0,0,0,.48),0 0 0 1px rgba(255,255,255,.06);
+}
+#trackTitle, .track-title, .now-title, .song-title {
+  letter-spacing:-.045em; font-weight:800;
+}
+button, .btn { transition:filter .15s,transform .15s,background .15s; }
+button:active, .btn:active { transform:scale(.97); }
+#play, #btnPlay, .play-btn, .primary-play {
+  background:linear-gradient(145deg,#e2caff,#b78aff) !important; color:#180e24 !important;
+  box-shadow:0 7px 28px rgba(183,138,255,.24);
+}
+#play:hover, #btnPlay:hover, .play-btn:hover, .primary-play:hover { filter:brightness(1.08); }
+#vizCanvas, canvas {
+  border-radius:14px; background:linear-gradient(180deg,rgba(183,138,255,.055),rgba(8,8,12,.15));
+}
+#queue { padding:16px; }
+.dialog, dialog, .modal {
+  border:1px solid rgba(255,255,255,.09); border-radius:18px;
+  background:linear-gradient(160deg,#1b1a23,#101015); color:var(--text);
+  box-shadow:0 25px 80px rgba(0,0,0,.6);
+}
+::-webkit-scrollbar { width:8px; height:8px; }
+::-webkit-scrollbar-thumb { background:#393443; border-radius:99px; }
+::-webkit-scrollbar-thumb:hover { background:#65537b; }
+@media (min-width:1100px) {
+  .app { grid-template-columns:minmax(245px,.78fr) minmax(480px,1.65fr) minmax(250px,.82fr); }
+  .stage { min-height:calc(100vh - 112px); }
+}
+@media (max-width:900px) {
+  .top { padding:12px 14px; }
+  .app { gap:10px; padding:10px; }
+  .col, .stage, #queue { border-radius:14px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}
