@@ -25,6 +25,7 @@
 const SOURCES = {
   bangla:  { label: 'Bangla',  blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/Music%20Bangla.txt' },
   english: { label: 'English', blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/Music%20English.txt' },
+  hindi:   { label: 'Hindi',   blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/Music%20Hindi.txt' },
   other:   { label: 'Other',   blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/Music%20Other.txt' },
   dj:      { label: 'DJ',      blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/DJ.txt' },
   sakrain: { label: 'For Sakrain', blob: 'https://github.com/mdimrankhanalpha/Music/blob/main/Music.txt/For%20Sakrain.txt' },
@@ -422,6 +423,22 @@ function swapAudio(cors, carry) {
   return el;
 }
 
+let warmAudio = null;
+let warmUrl = '';
+function warmNextTrack(track) {
+  // A second lightweight audio element asks the browser to fetch/decode the next file
+  // while the current song plays. Never delay the current play() call for this.
+  if (!track || !S.autoplay) return;
+  const list = queue.length ? [queue[0]] : (ctxList.length ? ctxList : view);
+  let next = list.find((t, i) => i > list.indexOf(track));
+  if (!next && S.repeat === 'all' && list.length) next = list[0];
+  if (!next || next.s === track.s || next.s === warmUrl) return;
+  try {
+    if (!warmAudio) { warmAudio = new Audio(); warmAudio.preload = 'auto'; warmAudio.volume = 0; }
+    warmUrl = next.s; warmAudio.src = next.s; warmAudio.load();
+  } catch (_) { /* browser/network may disallow speculative preload */ }
+}
+
 function playTrack(t, o = {}) {
   if (!t) return;
   if (sameTrack(t, cur) && !t.bad && !o.force && audio.src) { togglePlay(); return; }   // tapping the current track toggles
@@ -437,8 +454,10 @@ function playTrack(t, o = {}) {
   setStatus('Loading…');
   audio.src = t.s;
   audio.defaultPlaybackRate = S.rate; audio.playbackRate = S.rate;
+  // Start immediately; separately warm the following track so next() is not waiting on its first request.
   const p = audio.play();
   if (p && p.catch) p.catch(onPlayRejected);
+  warmNextTrack(t);
   updateNowPlaying();
   updateMediaSession();
   paintRows(false);
@@ -1229,6 +1248,14 @@ function paintSettingsControls() {
 
 function init() {
   cacheDom();
+  // Put search with the library, and playback tools in the center player column.
+  const libHead = document.querySelector('.libhead');
+  if (libHead && E.btnSearch) libHead.prepend(E.btnSearch);
+  const stageIn = document.querySelector('.stage-in');
+  if (stageIn) {
+    const strip = document.createElement('div'); strip.className = 'center-tools'; strip.setAttribute('aria-label', 'Player tools');
+    strip.append(E.btnViz, E.btnTools, E.btnSettings); stageIn.prepend(strip);
+  }
   applyTheme();
   // iOS ignores element.volume; hide the sliders there rather than show controls that do nothing.
   const probe = new Audio(); probe.volume = 0.5; volumeSupported = probe.volume === 0.5;

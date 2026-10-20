@@ -348,3 +348,33 @@ html[data-theme="orange"] { --accent: #ffc46b; }
   .stage-in { max-width:560px; }
   .list { max-height:42dvh; }
 }
+
+
+/* Responsive performance-first polish */
+.center-tools { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 10px; }
+.libhead { gap:8px; }
+#btnSearch { flex:none; width:38px; height:38px; min-height:38px; border-radius:50%; }
+#btnSearch .i { width:18px; height:18px; }
+.title { font-size:clamp(1.25rem, 2vw, 2rem); line-height:1.2; overflow-wrap:anywhere; }
+#npTrack { overflow-wrap:anywhere; }
+#vizStage { width:100%; }
+#vizCanvas { width:100%; max-height:clamp(48px, 10dvh, 110px); }
+/* Keep the player controls and current-track identity prominent in the center column. */
+@media (min-width:1000px) {
+  #player { overflow-y:auto; scrollbar-width:thin; }
+  .stage-in { display:flex; flex-direction:column; justify-content:center; gap:clamp(4px, 1dvh, 12px); max-width:760px; }
+  .art { height:clamp(150px, 25dvh, 280px); max-width:min(100%, 340px); flex:none; }
+  .title { font-size:clamp(1.35rem, 2vw, 2.2rem); text-align:center; margin:8px 0; }
+  .meta { justify-content:center; text-align:center; }
+  .status { text-align:center; }
+  #vizStage { max-height:none; }
+  #vizCanvas { max-height:clamp(55px, 9dvh, 100px); }
+  .ctrl.main { margin-top:8px; }
+  .ctrl.sub { margin-top:6px; }
+  dialog[open] { position:fixed; left:auto; right:1.5vw; top:12vh; bottom:auto; width:min(27vw, 440px); max-height:76vh; margin:0; z-index:9999; box-shadow:0 18px 80px #000b; }
+}
+@media (max-width:999px) {
+  .center-tools { position:sticky; top:0; z-index:3; padding:8px; background:var(--bg); }
+  .title { text-align:center; }
+  dialog[open] { width:min(94vw, 560px); max-height:84dvh; }
+}
