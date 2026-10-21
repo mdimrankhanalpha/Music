@@ -564,7 +564,10 @@ function ensureGraph() {
     n.fxIn.connect(n.fxOut);                                           // dry
     n.fxIn.connect(n.delay); n.delay.connect(n.eWet); n.eWet.connect(n.fxOut);
     n.delay.connect(n.fb); n.fb.connect(n.delay);                      // echo feedback
-    n.fxOut.connect(n.fade); n.fade.connect(n.an); n.an.connect(ctx.destination);
+    // safety limiter: catches peaks so heavy bass boosts get louder-sounding instead of crackling
+    n.lim = ctx.createDynamicsCompressor();
+    n.lim.threshold.value = -3; n.lim.knee.value = 0; n.lim.ratio.value = 20; n.lim.attack.value = 0.003; n.lim.release.value = 0.12;
+    n.fxOut.connect(n.fade); n.fade.connect(n.lim); n.lim.connect(n.an); n.an.connect(ctx.destination);
     const srcs = A.map((el) => { const s = ctx.createMediaElementSource(el); s.connect(n.in); return s; });
     g = { ctx, n, srcs };
   } catch (err) {
