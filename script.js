@@ -190,7 +190,7 @@ function parseMusicFile(text, cat) {
     if (line) urls.push(...linksInLine(line));
   }
   flush();
-  return tracks;
+  return tracks.sort((a, b) => a.n.localeCompare(b.n, undefined, { sensitivity: 'base', numeric: true }));
 }
 
 async function ensureCategory(cat, force) {
@@ -199,7 +199,8 @@ async function ensureCategory(cat, force) {
   catch (err) { return false; }
 }
 function buildAll() {                // "All" = every loaded category, in tab order
-  lib.all = { tracks: Object.keys(SOURCES).flatMap((c) => (lib[c] ? lib[c].tracks : [])) };
+  lib.all = { tracks: Object.keys(SOURCES).flatMap((c) => (lib[c] ? lib[c].tracks : []))
+    .sort((a, b) => a.n.localeCompare(b.n, undefined, { sensitivity: 'base', numeric: true })) };
 }
 async function loadCategory(cat, force = false) {
   curCat = cat; S.cat = cat; saveSettings();
@@ -240,6 +241,9 @@ function updateCount() {
 function showMsg(text, retry) { E.libMsgText.textContent = text; E.libRetry.hidden = !retry; E.libMsg.hidden = false; }
 function hideMsg() { E.libMsg.hidden = true; }
 function paintCats() {
+  const menuLabel = document.querySelector('#btnLibraryMenu .menu-label');
+  const activeCat = document.querySelector('.cat[data-cat="' + curCat + '"]');
+  if (menuLabel && activeCat) menuLabel.textContent = activeCat.textContent.replace(/\d+/g, '').trim();
   document.querySelectorAll('.cat').forEach((b) => {
     const c = b.dataset.cat;
     b.setAttribute('aria-pressed', String(c === curCat));
@@ -1248,6 +1252,35 @@ function paintSettingsControls() {
 
 function init() {
   cacheDom();
+  // Dropdown library picker and a dedicated queue workspace.
+  const cats = document.querySelector('.cats');
+  if (cats && !document.getElementById('btnLibraryMenu')) {
+    const menu = document.createElement('button');
+    menu.id = 'btnLibraryMenu'; menu.type = 'button'; menu.className = 'library-menu';
+    menu.setAttribute('aria-expanded', 'false');
+    menu.innerHTML = '<span class="menu-mark">≡</span><span class="menu-label">All</span><span class="menu-chevron">⌄</span>';
+    cats.parentNode.insertBefore(menu, cats); cats.hidden = true;
+    menu.addEventListener('click', () => {
+      cats.hidden = !cats.hidden;
+      menu.setAttribute('aria-expanded', String(!cats.hidden));
+    });
+    cats.addEventListener('click', (ev) => {
+      const b = ev.target.closest('.cat'); if (!b) return;
+      menu.querySelector('.menu-label').textContent = b.textContent.replace(/\d+/g, '').trim();
+      cats.hidden = true; menu.setAttribute('aria-expanded', 'false');
+    });
+  }
+  const topTools = document.querySelector('.top .tools');
+  if (topTools && !document.getElementById('btnQueuePage')) {
+    const q = document.createElement('button');
+    q.id = 'btnQueuePage'; q.type = 'button'; q.className = 'pill queue-nav'; q.textContent = 'Queue';
+    topTools.insertBefore(q, topTools.firstChild);
+    const back = document.createElement('button');
+    back.id = 'btnQueueBack'; back.type = 'button'; back.className = 'pill queue-back'; back.textContent = '← Back to music';
+    E.queue.prepend(back);
+    q.addEventListener('click', () => document.body.classList.add('queue-open'));
+    back.addEventListener('click', () => document.body.classList.remove('queue-open'));
+  }
   // Put search with the library, and playback tools in the center player column.
   const libHead = document.querySelector('.libhead');
   if (libHead && E.btnSearch) libHead.prepend(E.btnSearch);
