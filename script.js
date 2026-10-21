@@ -53,11 +53,11 @@ const store = {
 const E = {};
 ['q', 'cats', 'list', 'spacer', 'msg', 'msgText', 'retry', 'art', 'artFb', 'artLetter', 'artImg', 'title', 'sub',
  'seek', 'tCur', 'tDur', 'bShuffle', 'bPrev', 'bBack', 'bPlay', 'bFwd', 'bNext', 'bRepeat', 'bMute', 'vol', 'volwrap',
- 'speed', 'upText', 'qClear', 'toast'].forEach((id) => { E[id] = $(id); });
+ 'speed', 'upText', 'qClear', 'toast', 'btnViz', 'btnDj', 'popViz', 'popDj', 'viz', 'djState', 'fxReset', 'fxPitch'].forEach((id) => { E[id] = $(id); });
 
 /* ============================== settings ============================== */
 
-const S = Object.assign({ vol: 1, muted: false, rate: 1, repeat: 'off', shuffle: false, cat: 'all' }, store.get('s', {}));
+const S = Object.assign({ vol: 1, muted: false, rate: 1, repeat: 'off', shuffle: false, cat: 'all', viz: 'spectrum', keepPitch: true }, store.get('s', {}));
 if (S.cat !== 'all' && !SOURCES[S.cat]) S.cat = 'all';
 if (!REPEATS.includes(S.repeat)) S.repeat = 'off';
 S.vol = clamp(Number(S.vol) || 0, 0, 1);
@@ -281,15 +281,16 @@ const isPlaying = () => !!audio && !audio.paused && !audio.ended;
 function makeAudio() {
   const el = new Audio();
   el.preload = 'auto';
+  el.crossOrigin = 'anonymous';                       // lets the visualizer / DJ tools read the sound (GitHub allows it)
   el.volume = S.vol; el.muted = S.muted;
   el.defaultPlaybackRate = S.rate; el.playbackRate = S.rate;
-  el.preservesPitch = true; el.webkitPreservesPitch = true;
+  el.preservesPitch = S.keepPitch !== false; el.webkitPreservesPitch = S.keepPitch !== false;
   const on = (type, fn) => el.addEventListener(type, (ev) => { if (el === audio) fn(ev); });
   on('loadstart', () => { if (cur && !cur.bad) setStatus('Loading…'); });
   on('waiting', () => setStatus('Buffering…'));
   on('canplay', () => { if (!el.error) setStatus(''); });
   on('playing', onPlaying);
-  on('pause', () => { updatePlayUI(); setPlaybackState('paused'); paintRows(false); });
+  on('pause', () => { fadeReset(); stopLoop(); updatePlayUI(); setPlaybackState('paused'); paintRows(false); });
   on('ended', onEnded);
   on('timeupdate', onTimeUpdate);
   on('loadedmetadata', onMeta);
@@ -340,6 +341,7 @@ function preloadNext() {
   }
   if (pre.s === n.s && pre.el === idle) return;
   idle.loop = false; idle.preload = 'auto';
+  setCors(idle, n.s);
   idle.src = n.s; idle.load();
   pre = { s: n.s, el: idle };
 }
@@ -361,7 +363,14 @@ function playTrack(t, o = {}) {
   paintRows(false);
 }
 function startAudio(t) {
+  if (g && blocked.has(hostOf(t.s))) {                 // a host that forbids audio analysis cannot play once effects are on
+    t.bad = true; audio.pause();
+    setStatus('This audio host blocks effects, so it cannot play after DJ Tools or Visualizer were used. Reload the page to play it.', 'err');
+    toast('Song unavailable with effects on'); updatePlayUI(); paintRows(false);
+    return;
+  }
   setStatus('Loading…');
+  holdFade(); needFadeIn = true;
   const idle = A[1 - ai];
   if (pre.s === t.s && pre.el === idle && !idle.error) {
     // the next song was already downloaded: swap elements for an instant start
@@ -375,12 +384,13 @@ function startAudio(t) {
     if (p && p.catch) p.catch((err) => {
       if (err && err.name === 'NotAllowedError') {   // some mobile browsers only allow the element that already played
         ai = 1 - ai; audio = old; audio.loop = S.repeat === 'one';
-        audio.src = t.s; audio.play().catch(onRejected);
+        setCors(audio, t.s); audio.src = t.s; audio.play().catch(onRejected);
       } else onRejected(err);
     });
     return;
   }
   audio.loop = S.repeat === 'one';
+  setCors(audio, t.s);
   audio.src = t.s;
   const p = audio.play();
   if (p && p.catch) p.catch(onRejected);
@@ -392,7 +402,8 @@ function syncFromAudio() {
 }
 function resume() {
   if (!cur) return;
-  if (audio.error || !audio.getAttribute('src')) { cur.bad = false; audio.src = cur.s; setStatus('Loading…'); }
+  if (audio.error || !audio.getAttribute('src')) { cur.bad = false; setCors(audio, cur.s); audio.src = cur.s; setStatus('Loading…'); }
+  if (g && g.ctx.state === 'suspended') g.ctx.resume().catch(noop);
   const p = audio.play();
   if (p && p.catch) p.catch(onRejected);
 }
@@ -445,8 +456,11 @@ function toggleMute() { S.muted = !S.muted; eachAudio((a) => { a.muted = S.muted
 
 /* ---- audio events ---- */
 function onPlaying() {
-  failStreak = 0; setStatus('');
+  failStreak = 0; corsProbe = ''; setStatus('');
+  if (needFadeIn) { needFadeIn = false; fadeIn(); }
+  if (g && g.ctx.state === 'suspended') g.ctx.resume().catch(noop);
   updatePlayUI(); setPlaybackState('playing'); paintRows(false);
+  startLoop();
   preloadNext();                                      // current song is flowing: now fetch the next one
 }
 function onEnded() {
@@ -455,6 +469,7 @@ function onEnded() {
   next(false);
 }
 function onTimeUpdate() {
+  if (g) maybeFadeOut();
   if (document.hidden || seeking) return;
   const s = Math.floor(audio.currentTime);
   if (s === lastSec) return;
@@ -473,10 +488,327 @@ function onRejected(err) {
 function onError() {
   const err = audio.error;
   if (!err || err.code === 1 || !cur || !audio.getAttribute('src')) return;
+  const h = hostOf(cur.s);
+  // A host without CORS can fail on an analysis-ready element: retry once natively (only possible before effects are used)
+  if (!g && audio.crossOrigin && !blocked.has(h)) {
+    blocked.add(h); corsProbe = h;
+    setCors(audio, cur.s); audio.src = cur.s; audio.play().catch(noop);
+    return;
+  }
+  if (corsProbe === h) { blocked.delete(h); corsProbe = ''; }   // failed natively too: a dead link, not CORS
   cur.bad = true;
   setStatus(err.code === 2 ? 'Network error while loading this song.' : err.code === 3 ? 'This song could not be decoded.' : 'This song is unavailable.', 'err');
   updatePlayUI(); paintRows(false);
   if (++failStreak <= 5) { toast('Skipping an unavailable song'); next(false); }
+}
+
+/* ============================== audio graph: DJ tools + visualizer ============================== */
+/* Built the first time Visualizer or DJ Tools is used. Until then playback is plain native <audio>. */
+
+const FX_DEFAULT = { bass: 0, mid: 0, treble: 0, gain: 0, hp: 0, lp: 100, echo: 0, echoTime: 0.3, reverb: 0, fade: 0 };
+const fx = Object.assign({}, FX_DEFAULT);
+const fxActive = () => !!(fx.bass || fx.mid || fx.treble || fx.gain || fx.hp > 0 || fx.lp < 100 || fx.echo > 0 || fx.reverb > 0 || fx.fade > 0);
+const sliderHz = (v) => 20 * Math.pow(1000, v / 100);          // 0..100 -> 20 Hz..20 kHz (log)
+const dB = (v) => (v > 0 ? '+' : '') + v + ' dB';
+const fmtHz = (f) => (f >= 1000 ? (f / 1000).toFixed(f >= 10000 ? 0 : 1) + ' kHz' : Math.round(f) + ' Hz');
+const FX_FMT = {
+  bass: dB, mid: dB, treble: dB, gain: dB,
+  hp: (v) => (v <= 0 ? 'Off' : fmtHz(sliderHz(v))), lp: (v) => (v >= 100 ? 'Off' : fmtHz(sliderHz(v))),
+  echo: (v) => (v > 0 ? v + '%' : 'Off'), echoTime: (v) => Number(v).toFixed(2) + ' s',
+  reverb: (v) => (v > 0 ? v + '%' : 'Off'), fade: (v) => (v > 0 ? v + ' s' : 'Off')
+};
+const VIZ_MODES = ['spectrum', 'bars', 'wave', 'circle'];
+const hostOf = (u) => { try { return new URL(u).host; } catch { return ''; } };
+
+let g = null;                          // { ctx, n: nodes, srcs }
+let vizOn = false;
+let vizMode = VIZ_MODES.includes(S.viz) ? S.viz : 'spectrum';
+let needFadeIn = false, fadeOutDone = false, corsProbe = '';
+const blocked = new Set();             // hosts that do not allow audio analysis (no CORS)
+
+function setCors(el, url) {
+  if (blocked.has(hostOf(url))) el.removeAttribute('crossorigin'); else el.crossOrigin = 'anonymous';
+}
+function applyPitch() {
+  eachAudio((a) => { a.preservesPitch = S.keepPitch; a.webkitPreservesPitch = S.keepPitch; a.mozPreservesPitch = S.keepPitch; });
+}
+function makeIR(ctx) {                 // generated reverb tail: no file download
+  const len = Math.floor(ctx.sampleRate * 1.8);
+  const b = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = b.getChannelData(c);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4);
+  }
+  return b;
+}
+function ensureGraph() {
+  if (g) return true;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) { toast('This browser does not support effects.'); return false; }
+  if (cur && blocked.has(hostOf(cur.s))) { toast('This song’s host does not allow effects.'); return false; }
+  let ctx = null;
+  try {
+    ctx = new AC({ latencyHint: 'playback' });
+    const n = {};
+    const bq = (type, f, q) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; if (q) b.Q.value = q; return b; };
+    n.in = ctx.createGain();
+    n.bass = bq('lowshelf', 120); n.mid = bq('peaking', 1000, 0.9); n.treble = bq('highshelf', 4000);
+    n.hp = bq('highpass', 20, 0.707); n.lp = bq('lowpass', 20000, 0.707);
+    n.gain = ctx.createGain();
+    n.fxIn = ctx.createGain(); n.fxOut = ctx.createGain();
+    n.delay = ctx.createDelay(1); n.fb = ctx.createGain(); n.eWet = ctx.createGain(); n.rWet = ctx.createGain(); n.conv = null;
+    n.fade = ctx.createGain(); n.an = ctx.createAnalyser();
+    n.fb.gain.value = 0.38; n.eWet.gain.value = 0; n.rWet.gain.value = 0;
+    const chain = [n.in, n.bass, n.mid, n.treble, n.hp, n.lp, n.gain, n.fxIn];
+    for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]);
+    n.fxIn.connect(n.fxOut);                                           // dry
+    n.fxIn.connect(n.delay); n.delay.connect(n.eWet); n.eWet.connect(n.fxOut);
+    n.delay.connect(n.fb); n.fb.connect(n.delay);                      // echo feedback
+    n.fxOut.connect(n.fade); n.fade.connect(n.an); n.an.connect(ctx.destination);
+    const srcs = A.map((el) => { const s = ctx.createMediaElementSource(el); s.connect(n.in); return s; });
+    g = { ctx, n, srcs };
+  } catch (err) {
+    if (ctx) ctx.close().catch(noop);
+    g = null;
+    toast('Effects are not supported here. Normal playback is unaffected.');
+    return false;
+  }
+  ctx.resume().catch(noop);
+  configureAnalyser(); applyFx();
+  return true;
+}
+function applyFx() {
+  if (!g) return;
+  const { ctx, n } = g, t = ctx.currentTime;
+  const to = (p, v) => p.setTargetAtTime(v, t, 0.02);                  // smooth, no clicks
+  to(n.bass.gain, fx.bass); to(n.mid.gain, fx.mid); to(n.treble.gain, fx.treble);
+  to(n.hp.frequency, fx.hp > 0 ? sliderHz(fx.hp) : 20);
+  to(n.lp.frequency, fx.lp < 100 ? sliderHz(fx.lp) : 20000);
+  to(n.gain.gain, Math.pow(10, fx.gain / 20));
+  to(n.delay.delayTime, fx.echoTime); to(n.eWet.gain, fx.echo / 100 * 0.8);
+  if (fx.reverb > 0 && !n.conv) {
+    n.conv = ctx.createConvolver(); n.conv.buffer = makeIR(ctx);
+    n.fxIn.connect(n.conv); n.conv.connect(n.rWet); n.rWet.connect(n.fxOut);
+  }
+  to(n.rWet.gain, fx.reverb / 100 * 0.9);
+  if (fx.fade === 0) { n.fade.gain.cancelScheduledValues(t); n.fade.gain.setValueAtTime(1, t); fadeOutDone = false; }
+}
+
+/* ---- fade between songs (scheduled on the audio thread) ---- */
+function holdFade() {
+  if (!g || fx.fade <= 0) return;
+  const p = g.n.fade.gain, t = g.ctx.currentTime;
+  p.cancelScheduledValues(t); p.setValueAtTime(0, t);
+}
+function fadeIn() {
+  if (!g || fx.fade <= 0) return;
+  const p = g.n.fade.gain, t = g.ctx.currentTime;
+  p.cancelScheduledValues(t); p.setValueAtTime(0, t); p.linearRampToValueAtTime(1, t + fx.fade);
+  fadeOutDone = false;
+}
+function fadeReset() {
+  if (!g) return;
+  const p = g.n.fade.gain, t = g.ctx.currentTime;
+  p.cancelScheduledValues(t); p.setValueAtTime(1, t);
+  fadeOutDone = false;
+}
+function maybeFadeOut() {
+  if (fadeOutDone || !g || fx.fade <= 0 || audio.loop) return;
+  const rem = audio.duration - audio.currentTime;
+  if (!isFinite(rem) || rem > fx.fade + 0.25) return;
+  const p = g.n.fade.gain, t = g.ctx.currentTime;
+  p.cancelScheduledValues(t); p.setValueAtTime(p.value, t);
+  p.linearRampToValueAtTime(0, t + Math.max(0.1, rem / (audio.playbackRate || 1)));
+  fadeOutDone = true;
+}
+
+/* ---- DJ tools panel ---- */
+function syncFxControls() {
+  E.popDj.querySelectorAll('[data-fx]').forEach((inp) => {
+    const k = inp.dataset.fx;
+    inp.value = String(fx[k]); paintRange(inp);
+    inp.parentNode.querySelector('output').textContent = FX_FMT[k](fx[k]);
+  });
+  E.fxPitch.checked = S.keepPitch !== false;
+}
+function updateDjState() {
+  const on = fxActive();
+  E.djState.textContent = on ? 'ON' : 'OFF';
+  E.popDj.dataset.on = on ? '1' : '0';
+  E.btnDj.classList.toggle('on', on);
+}
+function onFxInput(e) {
+  const inp = e.target.closest('[data-fx]');
+  if (!inp) return;
+  const k = inp.dataset.fx;
+  fx[k] = Number(inp.value);
+  inp.parentNode.querySelector('output').textContent = FX_FMT[k](fx[k]);
+  paintRange(inp);
+  if (!g) {
+    if (!fxActive()) { updateDjState(); return; }
+    if (!ensureGraph()) { resetFx(); return; }
+  }
+  applyFx(); updateDjState();
+}
+function resetFx() { Object.assign(fx, FX_DEFAULT); syncFxControls(); applyFx(); updateDjState(); }
+
+/* ---- visualizer: drawn only on the cover photo ---- */
+let raf = 0, lastDraw = 0, vctx = null, dpr = 1, vgrad = null, ro = null;
+let buf = null, bands = null, bandVals = null;
+
+function configureAnalyser() {
+  if (!g) return;
+  const a = g.n.an;
+  a.smoothingTimeConstant = 0.82;
+  a.fftSize = vizMode === 'wave' ? 1024 : 2048;
+  buf = new Uint8Array(vizMode === 'wave' ? a.fftSize : a.frequencyBinCount);
+  const nb = vizMode === 'bars' ? 32 : vizMode === 'circle' ? 48 : 64;
+  const bins = a.frequencyBinCount, binHz = g.ctx.sampleRate / a.fftSize;
+  const f0 = 45, f1 = Math.min(16000, g.ctx.sampleRate / 2 * 0.95);
+  const edges = [];
+  for (let i = 0; i <= nb; i++) edges.push(Math.min(bins - 1, Math.round(f0 * Math.pow(f1 / f0, i / nb) / binHz)));
+  bands = { nb, edges }; bandVals = new Float32Array(nb);
+}
+function setViz(mode) {
+  if (mode === 'off') {
+    vizOn = false; stopLoop();
+    E.art.classList.remove('viz');
+    if (ro) { ro.disconnect(); ro = null; }
+    vctx = null; E.viz.width = 0; E.viz.height = 0;
+    paintVizUi();
+    return;
+  }
+  if (!VIZ_MODES.includes(mode) || !ensureGraph()) return;
+  vizMode = S.viz = mode; save();
+  vizOn = true;
+  E.art.classList.add('viz');
+  configureAnalyser();
+  prepareCanvas();
+  if ('ResizeObserver' in window && !ro) { ro = new ResizeObserver(prepareCanvas); ro.observe(E.art); }
+  paintVizUi();
+  startLoop();
+}
+function paintVizUi() {
+  E.btnViz.classList.toggle('on', vizOn);
+  E.btnViz.setAttribute('aria-pressed', String(vizOn));
+  E.popViz.querySelectorAll('[data-mode]').forEach((b) => {
+    b.setAttribute('aria-pressed', String(vizOn ? b.dataset.mode === vizMode : b.dataset.mode === 'off'));
+  });
+}
+function prepareCanvas() {
+  const r = E.art.getBoundingClientRect();
+  dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+  if (E.viz.width !== w) E.viz.width = w;
+  if (E.viz.height !== h) E.viz.height = h;
+  vctx = E.viz.getContext('2d');
+  vgrad = vctx.createLinearGradient(0, h, 0, 0);
+  vgrad.addColorStop(0, '#7d3dff'); vgrad.addColorStop(0.55, '#c13bd0'); vgrad.addColorStop(1, '#ff2e57');
+}
+function startLoop() {
+  if (raf || !vizOn || !g || document.hidden || !isPlaying()) return;
+  if (!vctx) prepareCanvas();
+  raf = requestAnimationFrame(draw);
+}
+function stopLoop() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+function fillBands() {
+  const { nb, edges } = bands;
+  for (let i = 0; i < nb; i++) {
+    const lo = edges[i], hi = Math.max(lo, edges[i + 1] - 1);
+    let m = 0;
+    for (let k = lo; k <= hi; k++) if (buf[k] > m) m = buf[k];
+    bandVals[i] = m / 255;
+  }
+}
+function drawBars(w, h) {
+  const nb = bands.nb, gap = Math.max(2, w / nb * 0.22), bw = (w - gap * (nb - 1)) / nb;
+  vctx.fillStyle = vgrad;
+  for (let i = 0; i < nb; i++) {
+    const bh = Math.max(3 * dpr, Math.pow(bandVals[i], 1.3) * h * 0.92);
+    vctx.fillRect(i * (bw + gap), h - bh, bw, bh);
+  }
+}
+function drawSpectrum(w, h) {
+  const nb = bands.nb;
+  vctx.beginPath(); vctx.moveTo(0, h);
+  for (let i = 0; i < nb; i++) vctx.lineTo(i / (nb - 1) * w, h - Math.pow(bandVals[i], 1.2) * h * 0.9);
+  vctx.lineTo(w, h); vctx.closePath();
+  vctx.globalAlpha = 0.5; vctx.fillStyle = vgrad; vctx.fill();
+  vctx.globalAlpha = 1; vctx.strokeStyle = vgrad; vctx.lineWidth = 2.5 * dpr; vctx.lineJoin = 'round'; vctx.stroke();
+}
+function drawCircle(w, h) {
+  const m = Math.min(w, h), cx = w / 2, cy = h / 2, nb = bands.nb, seg = nb * 2;
+  let bass = 0;
+  for (let i = 0; i < 4; i++) bass += bandVals[i];
+  const r0 = m * 0.2 * (1 + bass / 4 * 0.2), maxLen = m * 0.26;
+  vctx.beginPath();
+  for (let i = 0; i < seg; i++) {
+    const v = Math.pow(bandVals[i < nb ? i : seg - 1 - i], 1.2);
+    const a = i / seg * Math.PI * 2 - Math.PI / 2, c = Math.cos(a), s = Math.sin(a), len = 3 * dpr + v * maxLen;
+    vctx.moveTo(cx + c * r0, cy + s * r0); vctx.lineTo(cx + c * (r0 + len), cy + s * (r0 + len));
+  }
+  vctx.lineWidth = Math.max(3 * dpr, Math.PI * 2 * r0 / seg * 0.55); vctx.lineCap = 'round';
+  vctx.strokeStyle = vgrad; vctx.stroke();
+}
+function drawWave(w, h) {
+  const n = buf.length, pts = Math.min(n, 256), step = n / pts;
+  vctx.beginPath();
+  for (let i = 0; i < pts; i++) {
+    const y = h / 2 + ((buf[Math.floor(i * step)] - 128) / 128) * h * 0.42;
+    if (i === 0) vctx.moveTo(0, y); else vctx.lineTo(i / (pts - 1) * w, y);
+  }
+  vctx.lineWidth = 3 * dpr; vctx.lineJoin = 'round'; vctx.strokeStyle = vgrad; vctx.stroke();
+}
+const DRAW = { spectrum: drawSpectrum, bars: drawBars, circle: drawCircle, wave: drawWave };
+function draw(ts) {
+  raf = requestAnimationFrame(draw);
+  if (ts - lastDraw < 33) return;                       // ~30 fps
+  lastDraw = ts;
+  const a = g && g.n.an;
+  if (!a || !vctx || !buf || !bands) return;
+  const w = E.viz.width, h = E.viz.height;
+  vctx.clearRect(0, 0, w, h);
+  if (vizMode === 'wave') a.getByteTimeDomainData(buf);
+  else { a.getByteFrequencyData(buf); fillBands(); }
+  DRAW[vizMode](w, h);
+}
+
+/* ---- floating panels (overlay: they never take layout space) ---- */
+let openPop = null;
+function placePop(pop, btn) {
+  const r = btn.getBoundingClientRect();
+  pop.style.top = (r.bottom + 8) + 'px';
+  pop.style.maxHeight = Math.max(160, window.innerHeight - r.bottom - 20) + 'px';
+  const w = pop.offsetWidth;
+  pop.style.left = Math.max(10, Math.min(r.right - w, window.innerWidth - w - 10)) + 'px';
+}
+function closePop() {
+  if (!openPop) return;
+  openPop.pop.hidden = true; openPop.btn.setAttribute('aria-expanded', 'false'); openPop = null;
+}
+function togglePop(pop, btn) {
+  if (openPop && openPop.pop === pop) { closePop(); return; }
+  closePop();
+  pop.hidden = false; placePop(pop, btn);
+  btn.setAttribute('aria-expanded', 'true');
+  openPop = { pop, btn };
+}
+function bindTools() {
+  E.btnViz.addEventListener('click', () => togglePop(E.popViz, E.btnViz));
+  E.btnDj.addEventListener('click', () => togglePop(E.popDj, E.btnDj));
+  E.popViz.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mode]');
+    if (!b) return;
+    setViz(b.dataset.mode); closePop();
+  });
+  E.popDj.addEventListener('input', onFxInput);
+  E.fxReset.addEventListener('click', resetFx);
+  E.fxPitch.addEventListener('change', () => { S.keepPitch = E.fxPitch.checked; applyPitch(); save(); });
+  document.addEventListener('pointerdown', (e) => {
+    if (openPop && !e.target.closest('.pop') && !e.target.closest('.tb')) closePop();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePop(); });
+  window.addEventListener('resize', () => { if (openPop) placePop(openPop.pop, openPop.btn); }, { passive: true });
 }
 
 /* ============================== UI ============================== */
@@ -510,6 +842,7 @@ function updateNowPlaying() {
   updateSub();
   updateArt();
   updatePlayUI();
+  onMeta(); updateProgress();                         // a pre-downloaded song already knows its length: do not wipe it
 }
 function updateArt() {
   const name = cur ? cur.n : '';
@@ -638,6 +971,7 @@ function init() {
   if (probe.volume !== 0.5) E.volwrap.remove();
   bind();
   paintToggles(); paintVolume(); updateNowPlaying(); updateUpNext();
+  syncFxControls(); updateDjState(); paintVizUi(); bindTools();
   initMediaSession();
   paintRange(E.seek);
   paintCats();

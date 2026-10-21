@@ -24,6 +24,8 @@
     <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" stroke="none"/><path d="M17 9l5 6M22 9l-5 6"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.2-4.2"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-viz" viewBox="0 0 24 24"><path d="M5 20V12M9.5 20V5M14.5 20V9M19 20v-5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M5 12a7 7 0 1 0 2.2-5.1M5 4v4h4"/><text x="12" y="15.5" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">10</text></symbol>
     <symbol id="i-fwd" viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.2-5.1M19 4v4h-4"/><text x="12" y="15.5" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">10</text></symbol>
   </defs>
@@ -35,10 +37,14 @@
   <section id="library" class="panel" aria-label="Music library">
     <header class="lhead">
       <h1 class="brand">Alpha <span>Music</span></h1>
-      <label class="search">
-        <svg class="i"><use href="#i-search"/></svg>
-        <input id="q" type="search" placeholder="Search music" aria-label="Search music" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
-      </label>
+      <div class="htools">
+        <label class="search">
+          <svg class="i"><use href="#i-search"/></svg>
+          <input id="q" type="search" placeholder="Search music" aria-label="Search music" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        </label>
+        <button id="btnViz" class="tb" type="button" aria-label="Visualizer" title="Visualizer" aria-haspopup="true" aria-expanded="false" aria-pressed="false"><svg class="i"><use href="#i-viz"/></svg><span>Visualizer</span></button>
+        <button id="btnDj" class="tb" type="button" aria-label="DJ Tools" title="DJ Tools" aria-haspopup="true" aria-expanded="false"><svg class="i"><use href="#i-sliders"/></svg><span>DJ Tools</span></button>
+      </div>
     </header>
 
     <div id="cats" class="cats" role="group" aria-label="Category">
@@ -69,6 +75,7 @@
       <div class="art" id="art">
         <div class="art-fb" id="artFb"><span id="artLetter">♪</span></div>
         <img id="artImg" alt="Cover" hidden decoding="async" referrerpolicy="no-referrer">
+        <canvas id="viz" aria-hidden="true"></canvas>
       </div>
     </div>
 
@@ -107,6 +114,53 @@
     </div>
   </section>
 
+</div>
+
+<!-- Floating panels (overlay, no layout space) -->
+<div id="popViz" class="pop pop-viz" role="dialog" aria-label="Visualizer" hidden>
+  <div class="pop-top"><h3>Visualizer</h3></div>
+  <div class="vmodes">
+    <button type="button" data-mode="spectrum" aria-pressed="false">Spectrum</button>
+    <button type="button" data-mode="bars" aria-pressed="false">Bars</button>
+    <button type="button" data-mode="wave" aria-pressed="false">Waveform</button>
+    <button type="button" data-mode="circle" aria-pressed="false">Circle</button>
+    <button type="button" data-mode="off" class="off" aria-pressed="true">Off</button>
+  </div>
+</div>
+
+<div id="popDj" class="pop pop-dj" role="dialog" aria-label="DJ Tools" data-on="0" hidden>
+  <div class="pop-top"><h3>DJ Tools</h3><span class="state">Processing <b id="djState">OFF</b></span></div>
+
+  <fieldset>
+    <legend>Equalizer</legend>
+    <label class="ctl"><span>Bass</span><input class="range" type="range" min="-12" max="12" step="1" value="0" data-fx="bass"><output>0 dB</output></label>
+    <label class="ctl"><span>Mid</span><input class="range" type="range" min="-12" max="12" step="1" value="0" data-fx="mid"><output>0 dB</output></label>
+    <label class="ctl"><span>Treble</span><input class="range" type="range" min="-12" max="12" step="1" value="0" data-fx="treble"><output>0 dB</output></label>
+  </fieldset>
+  <fieldset>
+    <legend>Loudness</legend>
+    <label class="ctl"><span>Volume boost</span><input class="range" type="range" min="-12" max="12" step="1" value="0" data-fx="gain"><output>0 dB</output></label>
+  </fieldset>
+  <fieldset>
+    <legend>Filter</legend>
+    <label class="ctl"><span>High-pass</span><input class="range" type="range" min="0" max="100" step="1" value="0" data-fx="hp"><output>Off</output></label>
+    <label class="ctl"><span>Low-pass</span><input class="range" type="range" min="0" max="100" step="1" value="100" data-fx="lp"><output>Off</output></label>
+  </fieldset>
+  <fieldset>
+    <legend>Echo</legend>
+    <label class="ctl"><span>Mix</span><input class="range" type="range" min="0" max="100" step="1" value="0" data-fx="echo"><output>Off</output></label>
+    <label class="ctl"><span>Delay</span><input class="range" type="range" min="0.1" max="0.8" step="0.05" value="0.3" data-fx="echoTime"><output>0.30 s</output></label>
+  </fieldset>
+  <fieldset>
+    <legend>Reverb</legend>
+    <label class="ctl"><span>Mix</span><input class="range" type="range" min="0" max="100" step="1" value="0" data-fx="reverb"><output>Off</output></label>
+  </fieldset>
+  <fieldset>
+    <legend>Between songs</legend>
+    <label class="ctl"><span>Fade</span><input class="range" type="range" min="0" max="12" step="1" value="0" data-fx="fade"><output>Off</output></label>
+  </fieldset>
+  <div class="set"><label for="fxPitch">Keep pitch when speed changes</label><input id="fxPitch" class="sw" type="checkbox" checked></div>
+  <button id="fxReset" class="btn" type="button">Reset all effects</button>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
