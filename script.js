@@ -1277,7 +1277,8 @@ function init() {
     topTools.insertBefore(q, topTools.firstChild);
     const back = document.createElement('button');
     back.id = 'btnQueueBack'; back.type = 'button'; back.className = 'pill queue-back'; back.textContent = '← Back to music';
-    E.queue.prepend(back);
+    const queuePage = document.getElementById('queue');
+    if (queuePage) queuePage.prepend(back);
     q.addEventListener('click', () => document.body.classList.add('queue-open'));
     back.addEventListener('click', () => document.body.classList.remove('queue-open'));
   }
