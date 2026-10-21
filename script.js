@@ -163,7 +163,7 @@ function linksInLine(line) {         // every http(s) link on a line, in order
   const re = /https?:\/\//gi;
   let m;
   while ((m = re.exec(line))) pos.push(m.index);
-  return pos.map((p, i) => line.slice(p, pos[i + 1]).trim());
+  return pos.map((p, i) => line.slice(p, pos[i + 1] ?? line.length).trim());
 }
 function nameFromUrl(u) {
   let seg = u.split(/[?#]/)[0].split('/').pop() || u;
