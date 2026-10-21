@@ -659,3 +659,49 @@ dialog {border-color:rgba(221,190,239,.14);background:linear-gradient(155deg,#21
 /* Queue is a dedicated page, never a third scrolling column. */
 #queue { display:none; }
 @media (max-width:999px) { body.queue-open #queue { display:flex; } }
+
+/* Spotify-inspired desktop composition: now-playing center, Studio/Queue on the right,
+   full-width playlist along the bottom. */
+@media (min-width:1000px) {
+  body { min-height:100vh; }
+  .top { max-width:none; width:100%; padding:14px clamp(18px,2vw,32px); }
+  .top .tools { gap:8px; }
+  .top .tools #btnViz, .top .tools #btnTools { display:none; }
+  .app {
+    max-width:none; width:100%; margin:0; padding:12px clamp(14px,1.8vw,28px) 18px;
+    display:grid; grid-template-columns:minmax(380px,1.12fr) minmax(310px,.88fr);
+    grid-template-rows:minmax(380px, .95fr) minmax(220px,.72fr);
+    grid-template-areas:"player queue" "library library";
+    gap:14px; height:calc(100dvh - 76px); min-height:760px;
+  }
+  #player { grid-area:player; min-height:0; padding:20px 28px; }
+  #queue {
+    grid-area:queue; display:flex; flex-direction:column; min-height:0; overflow:hidden;
+    border:1px solid rgba(221,190,239,.10); border-radius:18px;
+    background:linear-gradient(155deg,rgba(29,20,36,.96),rgba(13,10,17,.98));
+    padding:16px 18px;
+  }
+  #queue .qlist { min-height:0; overflow:auto; }
+  #queue .empty { margin:auto 0; }
+  #library {
+    grid-area:library; min-height:0; display:flex; flex-direction:column; overflow:hidden;
+    padding:14px 18px; border:1px solid rgba(221,190,239,.10); border-radius:18px;
+    background:linear-gradient(145deg,rgba(23,17,29,.98),rgba(13,10,17,.98));
+  }
+  #library .cats { display:flex; flex-wrap:wrap; gap:7px; }
+  #library .library-menu { max-width:300px; }
+  #library .libhead { flex:none; }
+  #library .listwrap { flex:1; min-height:0; }
+  #library .list { height:100%; max-height:none; overflow:auto; }
+  .side-tools { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:0 0 12px; margin-bottom:10px; border-bottom:1px solid rgba(230,207,242,.09); }
+  .side-tools-title { width:100%; margin:0 0 2px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#bfa5ce; }
+  .side-tools .pill { min-height:34px; }
+  body.queue-open #queue { grid-area:auto; display:flex; position:fixed; z-index:40; inset:0; width:100%; height:100dvh; min-height:0; border:0; border-radius:0; padding:28px clamp(24px,5vw,72px); }
+  body.queue-open #queue .side-tools { display:none; }
+  body.queue-open .top, body.queue-open .app > #library, body.queue-open .app > #player { filter:blur(3px); pointer-events:none; }
+}
+@media (max-width:999px) {
+  .side-tools { display:flex; flex-wrap:wrap; gap:8px; padding-bottom:12px; }
+  .side-tools-title { flex-basis:100%; margin:0; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#bfa5ce; }
+  .side-tools .pill { min-height:36px; }
+}

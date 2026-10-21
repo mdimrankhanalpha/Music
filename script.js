@@ -850,9 +850,19 @@ function showCover(url) {
   img.hidden = true; E.artSvg.hidden = false;
   img.onload = img.onerror = null;
   if (!url) { img.removeAttribute('src'); return; }
+  // GitHub /blob/ links are HTML pages; use raw file URLs for artwork.
+  let coverUrl = String(url).trim();
+  try {
+    const u = new URL(coverUrl);
+    if (u.hostname === 'github.com' && u.pathname.includes('/blob/')) {
+      u.hostname = 'raw.githubusercontent.com';
+      u.pathname = u.pathname.replace('/blob/', '/');
+      coverUrl = u.href;
+    }
+  } catch { /* retain URL and use image load handlers */ }
   img.onload = () => { img.hidden = false; E.artSvg.hidden = true; };
   img.onerror = () => { img.hidden = true; E.artSvg.hidden = false; };
-  img.src = url;
+  img.src = coverUrl;
 }
 function paintToggles() {
   E.bShuffle.setAttribute('aria-pressed', String(S.shuffle));
@@ -1282,13 +1292,21 @@ function init() {
     q.addEventListener('click', () => document.body.classList.add('queue-open'));
     back.addEventListener('click', () => document.body.classList.remove('queue-open'));
   }
-  // Put search with the library, and playback tools in the center player column.
+  // Search stays with the library; visualizer and DJ tools live in the right-hand Studio panel.
   const libHead = document.querySelector('.libhead');
   if (libHead && E.btnSearch) libHead.prepend(E.btnSearch);
-  const stageIn = document.querySelector('.stage-in');
-  if (stageIn) {
-    const strip = document.createElement('div'); strip.className = 'center-tools'; strip.setAttribute('aria-label', 'Player tools');
-    strip.append(E.btnViz, E.btnTools, E.btnSettings); stageIn.prepend(strip);
+  const queuePage = document.getElementById('queue');
+  if (queuePage) {
+    const sideTools = document.createElement('div');
+    sideTools.className = 'side-tools';
+    sideTools.setAttribute('aria-label', 'Visualizer and DJ tools');
+    const heading = document.createElement('h3');
+    heading.className = 'side-tools-title';
+    heading.textContent = 'Studio';
+    sideTools.append(heading, E.btnViz, E.btnTools);
+    const qhead = queuePage.querySelector('.qhead');
+    if (qhead) queuePage.insertBefore(sideTools, qhead);
+    else queuePage.prepend(sideTools);
   }
   applyTheme();
   // iOS ignores element.volume; hide the sliders there rather than show controls that do nothing.
