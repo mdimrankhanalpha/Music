@@ -123,9 +123,25 @@ function parse(text, cat) {
 
 function setCat(cat, text) {
   lib[cat] = parse(text, cat);
-  lib.all = ORDER.flatMap((c) => lib[c] || []).sort(byName);
+  lib.all = mergeAll();
   scheduleRefresh(false);
 }
+/* "All" shows each song once. A song listed in several playlists (same audio link) becomes one row carrying every tag. */
+const dupKey = (u) => { let k = u; try { k = decodeURIComponent(u); } catch { /* keep */ } return k.replace(/ /g, '%20').toLowerCase(); };   // same link written with %28 or ( ) counts as the same song
+function mergeAll() {
+  const seen = new Map();
+  const out = [];
+  for (const c of ORDER) {
+    for (const t of lib[c] || []) {
+      const hit = seen.get(dupKey(t.s));
+      if (hit) { if (!hit.cats.includes(c)) hit.cats.push(c); if (!hit.cv && t.cv) hit.cv = t.cv; }
+      else { const m = Object.assign({}, t, { cats: [c] }); seen.set(dupKey(t.s), m); out.push(m); }
+    }
+  }
+  return out.sort(byName);
+}
+const tagsOf = (t) => (t.cats && t.cats.length ? t.cats : [t.c]);
+const tagText = (t) => tagsOf(t).map((c) => SOURCES[c].label).join(' · ');
 async function loadCat(cat, force) {
   const cached = store.get('lib:' + cat, null);
   if (cached && typeof cached.text === 'string' && !force) {
@@ -198,9 +214,9 @@ function makeRow() {
   const row = document.createElement('div');
   row.className = 'row'; row.setAttribute('role', 'listitem');
   row.innerHTML =
-    '<button class="r-main" type="button"><span class="r-n"></span><span class="r-t"></span><span class="r-c"></span></button>' +
+    '<button class="r-main" type="button"><span class="r-n"></span><span class="r-t"></span><span class="r-tags"></span></button>' +
     '<button class="r-q" type="button"><svg class="i"><use href="#i-plus"/></svg><b></b></button>';
-  row._n = row.querySelector('.r-n'); row._t = row.querySelector('.r-t'); row._c = row.querySelector('.r-c');
+  row._n = row.querySelector('.r-n'); row._t = row.querySelector('.r-t'); row._c = row.querySelector('.r-tags'); row._chips = [];
   row._m = row.firstChild; row._q = row.lastChild; row._b = row._q.querySelector('b');
   E.spacer.appendChild(row);
   return row;
@@ -223,7 +239,9 @@ function paintRows(force) {
       row.className = 'row' + (isCur ? ' cur' : '') + (t.bad ? ' bad' : '') + (qp ? ' inq' : '');
       row._n.textContent = i + 1;
       row._t.textContent = t.n;
-      row._c.textContent = SOURCES[t.c].label;
+      const tg = tagsOf(t);
+      while (row._chips.length < tg.length) { const ch = document.createElement('span'); ch.className = 'r-c'; row._c.appendChild(ch); row._chips.push(ch); }
+      row._chips.forEach((ch, j) => { if (j < tg.length) { ch.hidden = false; ch.textContent = SOURCES[tg[j]].label; } else ch.hidden = true; });
       row._b.textContent = qp || '';
       row._m.setAttribute('aria-label', (isCur && isPlaying() ? 'Pause ' : 'Play ') + t.n);
       row._q.setAttribute('aria-label', qp ? `Remove from queue (position ${qp}): ${t.n}` : 'Add to queue: ' + t.n);
@@ -818,7 +836,7 @@ function bindTools() {
 
 function setStatus(msg, kind) { status = msg; E.sub.dataset.s = kind || ''; updateSub(); }
 function updateSub() {
-  E.sub.textContent = status || (cur ? SOURCES[cur.c].label : 'Tap any track in the list');
+  E.sub.textContent = status || (cur ? tagText(cur) : 'Tap any track in the list');
 }
 function paintRange(r) {
   const min = Number(r.min) || 0, max = Number(r.max) || 0;
@@ -890,7 +908,7 @@ function updateMediaSession() {
   if (!('mediaSession' in navigator) || !cur) return;
   try {
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: cur.n, artist: SOURCES[cur.c].label, album: APP, artwork: cur.cv ? [{ src: cur.cv }] : []
+      title: cur.n, artist: tagText(cur), album: APP, artwork: cur.cv ? [{ src: cur.cv }] : []
     });
   } catch { /* ignore */ }
 }
