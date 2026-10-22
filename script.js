@@ -20,13 +20,14 @@ const SOURCES = {
   hindi:   { label: 'Hindi',         file: 'Music%20Hindi.txt' },
   other:   { label: 'Other',         file: 'Music%20Other.txt' },
   dj:      { label: 'DJ',            file: 'DJ.txt' },
+  party:   { label: 'Party',         file: 'Party.txt' },
   sakrain: { label: 'For Sakrain',   file: 'For%20Sakrain.txt' },
   russian: { label: 'Music Russian', file: 'Music%20Russian.txt' }
 };
 const ORDER = Object.keys(SOURCES);
 const KEY = 'am3:';
 const TTL = 6 * 3600 * 1000;           // refresh the text files in the background at most every 6 h
-const ROW_H = 52;                      // keep equal to --row in style.css
+let ROW_H = 52;                        // read from --row in style.css (phones use taller rows)
 const OVER = 5;
 const HISTORY_MAX = 60;
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -202,6 +203,19 @@ function chooseCat(cat) {
   if (cat === curCat) return;
   curCat = S.cat = cat; save();
   scheduleRefresh(true);
+  revealCat();
+}
+/* phones: the category row scrolls sideways, so bring the chosen one to the middle */
+function revealCat() {
+  const b = E.cats.querySelector('.cat[data-cat="' + curCat + '"]');   // by name: the pressed highlight is only repainted a frame later
+  const max = E.cats.scrollWidth - E.cats.clientWidth;
+  if (!b || max <= 0) return;
+  E.cats.scrollTo({ left: clamp(b.offsetLeft - (E.cats.clientWidth - b.offsetWidth) / 2, 0, max), behavior: 'smooth' });
+}
+function syncRowH() {
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--row'));
+  if (v > 0 && v !== ROW_H) { ROW_H = v; return true; }
+  return false;
 }
 
 /* ============================== virtual list ============================== */
@@ -983,7 +997,7 @@ function bind() {
     e.preventDefault();
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && cur) { lastSec = -1; updateProgress(); updatePlayUI(); } });
-  window.addEventListener('resize', () => paintRows(true), { passive: true });
+  window.addEventListener('resize', () => { if (syncRowH()) scheduleRefresh(false); else paintRows(true); }, { passive: true });
 }
 
 function init() {
@@ -995,7 +1009,9 @@ function init() {
   syncFxControls(); updateDjState(); paintVizUi(); bindTools();
   initMediaSession();
   paintRange(E.seek);
+  syncRowH();
   paintCats();
+  requestAnimationFrame(revealCat);
   showMsg('Loading music…');
   loadAll(false);
   scheduleRefresh(false);

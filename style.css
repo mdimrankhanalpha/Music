@@ -96,6 +96,8 @@ h1, h2, p { margin: 0; }
 .r-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .r-c { display: none; flex: none; padding: 1px 8px; border: 1px solid var(--line); border-radius: 10px; color: var(--mute); font-size: .72rem; white-space: nowrap; }
 .list.all .r-c { display: inline-block; }
+.r-tags { flex: none; display: flex; gap: 4px; }
+.r-tags .r-c[hidden] { display: none !important; }
 .r-q {
   flex: none; width: 36px; height: 36px; margin: 0 12px 0 4px; display: grid; place-items: center; border-radius: 50%;
   border: 1px solid var(--line); color: var(--mute); background: rgba(255, 255, 255, .03);
@@ -334,3 +336,63 @@ select {
 .vmodes .off { grid-column: 1 / -1; }
 .vmodes .off[aria-pressed="true"] { background: rgba(255, 46, 87, .16); border-color: rgba(255, 46, 87, .5); box-shadow: none; }
 @media (hover: hover) { .vmodes button:hover:not([aria-pressed="true"]) { color: #fff; border-color: rgba(255, 255, 255, .22); } }
+
+/* =====================================================================
+   v3 — phone layout (portrait phones and small tablets). Desktop / landscape untouched.
+   Order top to bottom: header, one-line scrolling categories, full song list, fixed player bar.
+   ===================================================================== */
+@media (max-width: 639px), (max-width: 899px) and (orientation: portrait) {
+  :root { --row: 72px; }
+
+  .app { grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "library" "player"; gap: 8px; }
+  #library { padding: 10px 12px 0; }
+
+  /* header: name, search, DJ only */
+  .lhead { margin-bottom: 8px; }
+  .brand { font-size: 1.05rem; }
+  #btnViz { display: none; }
+  .htools { gap: 8px; }
+  .search { flex: 1 1 0; min-width: 0; }
+  .search input { font-size: 16px; }                 /* 16px stops iPhone zooming the page when searching */
+
+  /* categories: one line, swipe sideways */
+  .cats {
+    position: relative; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; gap: 6px;
+    margin: 0 -12px 8px; padding: 2px 12px 4px; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+  }
+  .cats::-webkit-scrollbar { display: none; }
+  .cat { flex: none; min-height: 36px; padding: 0 14px; font-size: .88rem; white-space: nowrap; }
+
+  /* song list: every name readable (two lines), tags under the name */
+  .r-main { display: grid; grid-template-columns: 2.4em minmax(0, 1fr); column-gap: 10px; row-gap: 0; align-content: center; align-items: center; padding: 0 4px 0 14px; }
+  .r-n { grid-row: 1 / span 2; grid-column: 1; width: auto; font-size: .72rem; }
+  .r-t {
+    grid-column: 2; white-space: normal; overflow-wrap: anywhere; font-size: .95rem; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .row.cur .r-t { font-weight: 500; }
+  .r-tags { grid-column: 2; display: none; }
+  .list.all .r-tags { display: flex; flex-wrap: nowrap; gap: 4px; margin-top: 4px; overflow: hidden; }
+  .r-c { padding: 0 8px; font-size: .7rem; line-height: 18px; }
+  .r-q { width: 40px; height: 40px; margin: 0 10px 0 2px; }
+
+  /* player: a slim bar fixed at the bottom — name, thin progress, five buttons */
+  #player { grid-template-columns: minmax(0, 1fr); grid-template-areas: "info" "seek" "ctrl"; gap: 2px; padding: 10px 12px 8px; align-items: stretch; }
+  .art-wrap, .extra, .up, .times, #bBack, #bFwd { display: none; }
+  .info { text-align: center; }
+  .title { font: 700 1rem/1.25 var(--font); letter-spacing: 0; -webkit-line-clamp: 1; overflow-wrap: normal; text-overflow: ellipsis; }
+  .sub { margin-top: 2px; text-align: center; font-size: .78rem; }
+  .sub:not([data-s="err"]) { display: none; }       /* only show the line when something went wrong */
+  .seek .range { height: 18px; }
+  .ctrl { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 360px; }
+  .ctrl .cb { width: 46px; height: 46px; }
+  .ctrl .cb.play { width: 56px; height: 56px; }
+  .ctrl .cb .i { width: 54%; height: 54%; }
+  .ctrl .cb.play .i { width: 48%; height: 48%; }
+
+  /* keyboard open for searching: hide the bar so the list keeps its room */
+  .app:has(#q:focus) #player { display: none; }
+  .toast { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 130px); }
+  button { touch-action: manipulation; }
+  .ctl { grid-template-columns: 6.4em minmax(0, 1fr) 3.8em; gap: 6px; }
+}
