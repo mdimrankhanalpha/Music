@@ -26,7 +26,6 @@ const SOURCES = {
 };
 const ORDER = Object.keys(SOURCES);
 const KEY = 'am3:';
-const TTL = 6 * 3600 * 1000;           // refresh the text files in the background at most every 6 h
 let ROW_H = 52;                        // read from --row in style.css (phones use taller rows)
 const OVER = 5;
 const HISTORY_MAX = 60;
@@ -145,16 +144,16 @@ const tagsOf = (t) => (t.cats && t.cats.length ? t.cats : [t.c]);
 const tagText = (t) => tagsOf(t).map((c) => SOURCES[c].label).join(' · ');
 async function loadCat(cat, force) {
   const cached = store.get('lib:' + cat, null);
-  if (cached && typeof cached.text === 'string' && !force) {
-    setCat(cat, cached.text);                         // instant: show what we already have
-    if (Date.now() - cached.t < TTL) return;          // fresh enough: no network at all
-  }
+  const hadCache = !!(cached && typeof cached.text === 'string');
+  if (hadCache && !force) setCat(cat, cached.text);    // instant: show what we already have
   loading++;
   try {
-    const res = await fetch(toRawUrl(BASE + SOURCES[cat].file), { cache: force ? 'reload' : 'default' });
+    // ALWAYS ask GitHub for the newest file: unique URL + no browser cache, so a normal refresh sees new songs
+    const url = toRawUrl(BASE + SOURCES[cat].file);
+    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
-    if (!cached || cached.text !== text || force) setCat(cat, text);
+    if (!hadCache || cached.text !== text || force) setCat(cat, text);
     store.set('lib:' + cat, { t: Date.now(), text });
     failed.delete(cat);
   } catch {
