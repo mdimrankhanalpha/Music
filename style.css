@@ -396,3 +396,14 @@ select {
   button { touch-action: manipulation; }
   .ctl { grid-template-columns: 6.4em minmax(0, 1fr) 3.8em; gap: 6px; }
 }
+
+/* =====================================================================
+   v4 — full screen button (icon only, last button in the header tools)
+   ===================================================================== */
+#btnFs { width: 38px; padding: 0; }
+#btnFs .i { transition: transform .18s ease; }
+#btnFs[aria-pressed="true"] { color: #fff; border-color: transparent; background: var(--grad); box-shadow: 0 6px 22px rgba(190, 50, 190, .3); }
+@media (hover: hover) {
+  #btnFs:hover .i { transform: scale(1.14); }
+  #btnFs[aria-pressed="true"]:hover { filter: brightness(1.1); }
+}

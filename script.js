@@ -943,6 +943,36 @@ function initMediaSession() {
   set('seekto', (d) => { if (d && d.seekTime != null && cur) audio.currentTime = d.seekTime; });
 }
 
+/* ============================== full screen ============================== */
+/* Real browser full screen: hides the address bar, tabs and (on desktop) the taskbar. Esc also exits. */
+
+function bindFullscreen() {
+  const btn = $('btnFs');
+  const root = document.documentElement;
+  const request = root.requestFullscreen || root.webkitRequestFullscreen;
+  const exit = document.exitFullscreen || document.webkitExitFullscreen;
+  if (!btn || !request || !exit || document.fullscreenEnabled === false) return;   // e.g. iPhone Safari has no page full screen: keep the button hidden
+  const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const paint = () => {
+    const on = isFs();
+    btn.setAttribute('aria-pressed', String(on));
+    btn.setAttribute('aria-label', on ? 'Exit full screen' : 'Enter full screen');
+    btn.title = on ? 'Exit full screen' : 'Full screen';
+    setIcon(btn, on ? 'i-fsx' : 'i-fs');
+  };
+  btn.hidden = false;
+  btn.addEventListener('click', () => {
+    try {
+      const p = isFs() ? exit.call(document) : request.call(root, { navigationUI: 'hide' });
+      if (p && p.catch) p.catch(() => toast('Full screen is not available here.'));
+    } catch { toast('Full screen is not available here.'); }
+    btn.blur();                                      // so the Space key keeps controlling playback
+  });
+  document.addEventListener('fullscreenchange', paint);
+  document.addEventListener('webkitfullscreenchange', paint);
+  paint();
+}
+
 /* ============================== wiring ============================== */
 
 function bind() {
@@ -1005,7 +1035,7 @@ function init() {
   if (probe.volume !== 0.5) E.volwrap.remove();
   bind();
   paintToggles(); paintVolume(); updateNowPlaying(); updateUpNext();
-  syncFxControls(); updateDjState(); paintVizUi(); bindTools();
+  syncFxControls(); updateDjState(); paintVizUi(); bindTools(); bindFullscreen();
   initMediaSession();
   paintRange(E.seek);
   syncRowH();
