@@ -107,12 +107,30 @@ function makeTrack(urls, cat) {
   const n = nameFromUrl(a);
   return { n, s, cv: cv ? toPlayable(cv) : '', c: cat, k: n.toLowerCase(), bad: false };
 }
+/* Every audio link is its own song, so no separator is needed between songs.
+   A "-" line (or a blank line in files without "-") still works and just closes a group.
+   A picture link becomes the cover of the song written right before it
+   (or of the next song, when the picture comes first in its group). */
 function parse(text, cat) {
   const lines = String(text).replace(/^\uFEFF/, '').split(/\r\n|\r|\n/).map((l) => l.trim());
   const hasDash = lines.some(isDash);
   const out = [];
   let urls = [];
-  const flush = () => { const t = makeTrack(urls, cat); if (t) out.push(t); urls = []; };
+  const flush = () => {
+    let last = null, pend = '';
+    for (const u of urls) {
+      if (isImage(u)) {
+        if (last && !last.cv) last.cv = toPlayable(u);
+        else if (!pend) pend = u;
+      } else {
+        const t = makeTrack([u], cat);
+        if (!t) continue;
+        if (pend) { t.cv = toPlayable(pend); pend = ''; }
+        out.push(t); last = t;
+      }
+    }
+    urls = [];
+  };
   for (const line of lines) {
     if (isDash(line) || (!line && !hasDash)) { flush(); continue; }
     if (line) urls.push(...linksIn(line));
@@ -382,7 +400,7 @@ function playTrack(t, o = {}) {
   if (!t) return;
   if (sameTrack(t, cur) && !t.bad && !o.force) { togglePlay(); return; }
   if (cur && !sameTrack(t, cur) && !o.noHistory) { history.push(cur); if (history.length > HISTORY_MAX) history.shift(); }
-  cur = t; t.bad = false;
+  cur = t; t.bad = false; t.mirrored = false;
   if (o.list) { ctxList = o.list; }
   ensureCtx();
   if (!o.fromQueue) { const idx = ctxList.findIndex((x) => x.s === t.s); if (idx >= 0) ctxPos = idx; }
@@ -433,7 +451,7 @@ function syncFromAudio() {
 }
 function resume() {
   if (!cur) return;
-  if (audio.error || !audio.getAttribute('src')) { cur.bad = false; setCors(audio, cur.s); audio.src = cur.s; setStatus('Loading…'); }
+  if (audio.error || !audio.getAttribute('src')) { cur.bad = false; cur.mirrored = false; setCors(audio, cur.s); audio.src = cur.s; setStatus('Loading…'); }
   if (g && g.ctx.state === 'suspended') g.ctx.resume().catch(noop);
   const p = audio.play();
   if (p && p.catch) p.catch(onRejected);
@@ -520,8 +538,13 @@ function onError() {
   const err = audio.error;
   if (!err || err.code === 1 || !cur || !audio.getAttribute('src')) return;
   const h = hostOf(cur.s);
+  // A song name with a comma is refused by Chrome on raw.githubusercontent.com: retry once through the mirror
+  if (!cur.mirrored && /%2c|,/i.test(cur.s)) {
+    const mir = mirrorOf(cur.s);
+    if (mir) { cur.mirrored = true; setCors(audio, mir); audio.src = mir; setStatus('Loading…'); audio.play().catch(noop); return; }
+  }
   // A host without CORS can fail on an analysis-ready element: retry once natively (only possible before effects are used)
-  if (!g && audio.crossOrigin && !blocked.has(h)) {
+  if (!g && !cur.mirrored && audio.crossOrigin && !blocked.has(h)) {
     blocked.add(h); corsProbe = h;
     setCors(audio, cur.s); audio.src = cur.s; audio.play().catch(noop);
     return;
@@ -559,6 +582,12 @@ const blocked = new Set();             // hosts that do not allow audio analysis
 
 function setCors(el, url) {
   if (blocked.has(hostOf(url))) el.removeAttribute('crossorigin'); else el.crossOrigin = 'anonymous';
+}
+/* Same file through the jsDelivr CDN. Used only when a song fails on raw.githubusercontent.com and its name has a comma:
+   GitHub sends the comma unquoted in the Content-Disposition header and Chrome rejects that response. */
+function mirrorOf(u) {
+  const m = u.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i);
+  return m ? `https://cdn.jsdelivr.net/gh/${m[1]}/${m[2]}@${m[3]}/${m[4]}` : '';
 }
 function applyPitch() {
   eachAudio((a) => { a.preservesPitch = S.keepPitch; a.webkitPreservesPitch = S.keepPitch; a.mozPreservesPitch = S.keepPitch; });
